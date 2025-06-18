@@ -6,6 +6,8 @@ import teamRoutes from './routes/teams.js';
 import projectRoutes from './routes/projects.js';
 import hierarchyRoutes from './routes/hierarchy.js';
 import organizationRoutes from './routes/organizations.js';
+import membershipRoutes from './routes/memberships.js';
+import invitationRoutes from './routes/invitations.js';
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -25,6 +27,8 @@ app.use('/api/v1/teams', teamRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/hierarchy', hierarchyRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
+app.use('/api/v1/memberships', membershipRoutes);
+app.use('/api/v1/invitations', invitationRoutes);
 
 app.listen(port, () => {
   console.log(`API server listening on port ${port}`);

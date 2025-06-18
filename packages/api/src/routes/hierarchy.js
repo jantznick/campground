@@ -55,6 +55,13 @@ router.get('/', async (req, res) => {
         });
         
         const hierarchy = Array.from(orgMap.values());
+
+        // Filter companies based on account type
+        hierarchy.forEach(org => {
+            if (org.accountType === 'STANDARD' && org.defaultCompanyId) {
+                org.companies = org.companies.filter(c => c.id === org.defaultCompanyId);
+            }
+        });
         
         res.status(200).json(hierarchy);
 

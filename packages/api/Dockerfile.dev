@@ -33,4 +33,11 @@ WORKDIR /app/packages/api
 
 EXPOSE 3001
 
-CMD ["npm", "run", "dev"] 
+# Clean node_modules, reinstall, and then run the dev server.
+# This ensures that a fresh Prisma Client is generated on every container start,
+# which is crucial for development when the schema changes.
+CMD ["sh", "-c", "rm -rf node_modules"] 
+
+CMD ["npm" "install"]
+
+CMD ["npm" "run" "dev"]

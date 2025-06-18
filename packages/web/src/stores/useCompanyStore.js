@@ -1,63 +1,63 @@
 import { create } from 'zustand';
 
-const useTeamStore = create((set) => ({
+const useCompanyStore = create((set) => ({
     isLoading: false,
     error: null,
 
-    // Create a new team
-    createTeam: async (teamData) => {
+    // Create a new company
+    createCompany: async (companyData) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await fetch('/api/v1/teams', {
+            const response = await fetch('/api/v1/companies', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(teamData),
+                body: JSON.stringify(companyData),
             });
             if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || 'Failed to create team');
+                throw new Error(err.error || 'Failed to create company');
             }
-            const newTeam = await response.json();
+            const newCompany = await response.json();
             set({ isLoading: false });
-            return newTeam;
+            return newCompany;
         } catch (error) {
             set({ error: error.message, isLoading: false });
             throw error;
         }
     },
 
-    // Update an existing team
-    updateTeam: async (id, teamData) => {
+    // Update an existing company
+    updateCompany: async (id, companyData) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await fetch(`/api/v1/teams/${id}`, {
+            const response = await fetch(`/api/v1/companies/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(teamData),
+                body: JSON.stringify(companyData),
             });
             if (!response.ok) {
                  const err = await response.json();
-                throw new Error(err.error || 'Failed to update team');
+                throw new Error(err.error || 'Failed to update company');
             }
-            const updatedTeam = await response.json();
+            const updatedCompany = await response.json();
             set({ isLoading: false });
-            return updatedTeam;
+            return updatedCompany;
         } catch (error) {
             set({ error: error.message, isLoading: false });
              throw error;
         }
     },
 
-    // Delete a team
-    deleteTeam: async (id) => {
+    // Delete a company
+    deleteCompany: async (id) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await fetch(`/api/v1/teams/${id}`, {
+            const response = await fetch(`/api/v1/companies/${id}`, {
                 method: 'DELETE',
             });
              if (!response.ok) {
                 const err = await response.json();
-                throw new Error(err.error || 'Failed to delete team');
+                throw new Error(err.error || 'Failed to delete company');
             }
             set({ isLoading: false });
         } catch (error) {
@@ -67,4 +67,4 @@ const useTeamStore = create((set) => ({
     },
 }));
 
-export default useTeamStore; 
+export default useCompanyStore; 

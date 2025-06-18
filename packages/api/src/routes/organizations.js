@@ -39,18 +39,55 @@ router.get('/:id', async (req, res) => {
 // PUT /api/v1/organizations/:id - Update an organization
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
-    
-    // Authorization: Check if the user is an ADMIN of the organization
+    const { name, description, accountType, defaultCompanyId } = req.body;
+
     const canUpdate = await hasPermission(req.user, 'ADMIN', 'organization', id);
     if (!canUpdate) {
         return res.status(403).json({ error: 'You are not authorized to update this organization.' });
     }
 
     try {
+        const currentOrg = await prisma.organization.findUnique({ where: { id } });
+        if (!currentOrg) {
+            return res.status(404).json({ error: 'Organization not found.' });
+        }
+
+        const isDowngrading = currentOrg.accountType === 'ENTERPRISE' && accountType === 'STANDARD';
+
+        if (isDowngrading) {
+            if (!defaultCompanyId) {
+                return res.status(400).json({ error: 'When downgrading to Standard, a default company must be selected.' });
+            }
+
+            const company = await prisma.company.findFirst({
+                where: { id: defaultCompanyId, organizationId: id }
+            });
+            if (!company) {
+                return res.status(400).json({ error: 'The selected default company does not belong to this organization.' });
+            }
+            
+            // Non-destructive downgrade: just update the org type and default company
+            const updatedOrganization = await prisma.organization.update({
+                where: { id },
+                data: {
+                    accountType: 'STANDARD',
+                    defaultCompanyId: defaultCompanyId
+                }
+            });
+
+            return res.status(200).json(updatedOrganization);
+        }
+
+        // Handle normal updates (name, description) and upgrades
+        const dataToUpdate = {};
+        if (name) dataToUpdate.name = name;
+        if (description !== undefined) dataToUpdate.description = description;
+        if (accountType) dataToUpdate.accountType = accountType;
+        if (defaultCompanyId) dataToUpdate.defaultCompanyId = defaultCompanyId;
+
         const updatedOrganization = await prisma.organization.update({
             where: { id },
-            data: { name, description }
+            data: dataToUpdate
         });
 
         res.status(200).json(updatedOrganization);

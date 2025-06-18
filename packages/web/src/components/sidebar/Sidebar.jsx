@@ -3,11 +3,14 @@ import SidebarHeader from './SidebarHeader';
 import HierarchySection from './HierarchySection';
 import UserProfile from './UserProfile';
 import useUIStore from '../../stores/useUIStore';
+import useHierarchyStore from '../../stores/useHierarchyStore';
 import { PanelLeftClose, PanelRightClose } from 'lucide-react';
 import ResizeHandle from './ResizeHandle';
+import CompanySwitcher from './CompanySwitcher';
 
 export default function Sidebar() {
   const { isSidebarCollapsed, toggleSidebar, sidebarWidth, isResizing } = useUIStore();
+  const { accountType } = useHierarchyStore();
 
   const sidebarStyle = {
     width: isSidebarCollapsed ? '80px' : `${sidebarWidth}px`,
@@ -24,6 +27,7 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-2">
         <HierarchySection isCollapsed={isSidebarCollapsed} />
       </div>
+      {accountType === 'ENTERPRISE' && <CompanySwitcher isCollapsed={isSidebarCollapsed} />}
       <UserProfile isCollapsed={isSidebarCollapsed} />
       
       {/* Collapse Toggle Button */}

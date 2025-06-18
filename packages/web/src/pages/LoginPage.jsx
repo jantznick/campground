@@ -1,41 +1,61 @@
-import { useState } from 'react';
-import AuthForm from '../components/AuthForm';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
+import AuthForm from '../components/AuthForm';
 
-function LoginPage({ onLoginSuccess }) {
-  const [error, setError] = useState(null);
-  const setUser = useAuthStore((state) => state.setUser);
+const LoginPage = () => {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const { login } = useAuthStore();
+    
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
 
-  const handleLogin = async ({ email, password }) => {
-    setError(null);
-    try {
-      const response = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    const inviteToken = searchParams.get('invite_token');
 
-      const data = await response.json();
+    useEffect(() => {
+        if (inviteToken) {
+            navigate(`/register?invite_token=${inviteToken}`);
+        }
+    }, [inviteToken, navigate]);
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
+    const handleLogin = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await login(email, password);
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      setUser(data);
-      onLoginSuccess();
-
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  return (
-    <AuthForm
-      onSubmit={handleLogin}
-      buttonText="Login"
-      errorMessage={error}
-    />
-  );
-}
+    return (
+        <AuthForm
+            formType="login"
+            title="Sign in to your account"
+            buttonText="Login"
+            onSubmit={handleLogin}
+            error={error}
+            loading={loading}
+            email={email}
+            setEmail={setEmail}
+            password={password}
+            setPassword={setPassword}
+            footerContent={
+                <p>
+                    Don't have an account?{' '}
+                    <Link to="/register" className="font-medium text-[var(--orange-wheel)] hover:text-opacity-80">
+                        Sign up
+                    </Link>
+                </p>
+            }
+        />
+    );
+};
 
 export default LoginPage; 

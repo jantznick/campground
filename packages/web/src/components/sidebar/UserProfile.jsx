@@ -1,37 +1,57 @@
 import React from 'react';
-import {useAuthStore} from '../../stores/useAuthStore';
+import { LogOut, Star } from 'lucide-react';
+import { useAuthStore } from '../../stores/useAuthStore';
+import useHierarchyStore from '../../stores/useHierarchyStore';
 import Avatar from '../Avatar';
-import { LogOut, Settings } from 'lucide-react';
 
 const UserProfile = ({ isCollapsed }) => {
     const { user, logout } = useAuthStore();
+    const { accountType, hierarchy, fetchHierarchy } = useHierarchyStore();
 
-    if (!user) return null;
+    const handleUpgrade = async () => {
+        if (hierarchy.length === 0) {
+            console.error("No organization found to upgrade.");
+            return;
+        }
+        const organizationId = hierarchy[0].id;
+
+        try {
+            const response = await fetch(`/api/v1/organizations/${organizationId}/upgrade`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upgrade account');
+            }
+            
+            await fetchHierarchy();
+
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     return (
-        <div className={`px-6 py-5 border-t border-white/10 flex items-center bg-[var(--prussian-blue)] transition-all duration-300 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
-            <div className="flex-shrink-0">
+        <div className="border-t border-white/10 px-4 py-4">
+            <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
                 <Avatar username={user?.email} />
-            </div>
-            <div className={`flex-1 min-w-0 transition-all duration-300 flex items-center gap-2 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                <div className="flex-1 min-w-0">
-                    <div className="text-[var(--vanilla)] font-semibold truncate">{user?.email}</div>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        className="p-2 rounded-lg hover:bg-white/10 text-[var(--vanilla)] transition-colors"
-                        title="Settings"
-                    >
-                        <Settings size={20} />
-                    </button>
-                    <button
-                        onClick={logout}
-                        className="p-2 rounded-lg hover:bg-white/10 text-[var(--vanilla)] transition-colors"
-                        title="Logout"
-                    >
-                        <LogOut size={20} />
-                    </button>
-                </div>
+                
+                {!isCollapsed && (
+                    <>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-white truncate">{user?.name || 'User'}</p>
+                            <p className="text-xs text-white/60 truncate">{user?.email}</p>
+                        </div>
+                        <button
+                            onClick={logout}
+                            className="p-2 rounded-lg hover:bg-white/10 text-white/80"
+                            title="Logout"
+                        >
+                            <LogOut size={18} />
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -1,30 +1,37 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import useTeamStore from '../stores/useTeamStore';
+import useProjectStore from '../stores/useProjectStore';
+import useOrganizationStore from '../stores/useOrganizationStore';
+import useHierarchyStore from '../stores/useHierarchyStore';
 
 const ITEM_TYPES = {
   ORGANIZATION: 'organization',
-  COMPANY: 'company',
   TEAM: 'team',
   PROJECT: 'project'
 };
 
-const API_ENDPOINTS = {
-  [ITEM_TYPES.ORGANIZATION]: '/api/v1/organizations',
-  [ITEM_TYPES.COMPANY]: '/api/v1/companies',
-  [ITEM_TYPES.TEAM]: '/api/v1/teams',
-  [ITEM_TYPES.PROJECT]: '/api/v1/projects'
-};
-
-export default function CreateItemModal({ isOpen, onClose, type, parentId, onSuccess }) {
+export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { addItem: addItemToHierarchy, refreshActiveCompany } = useHierarchyStore();
+  
+  const { createTeam, isLoading: teamLoading, error: teamError } = useTeamStore();
+  const { createProject, isLoading: projectLoading, error: projectError } = useProjectStore();
+  const { createOrganization, isLoading: orgLoading, error: orgError } = useOrganizationStore();
+  
+  const loading = teamLoading || projectLoading || orgLoading;
+  const error = teamError || projectError || orgError;
+  
+  const resetErrors = () => {
+    useTeamStore.setState({ error: null });
+    useProjectStore.setState({ error: null });
+    useOrganizationStore.setState({ error: null });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    resetErrors();
 
     try {
       const payload = {
@@ -32,35 +39,37 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId, onSuc
         description: description || undefined
       };
 
-      // Add the appropriate parent ID based on the type
-      if (type === ITEM_TYPES.COMPANY) {
-        payload.organizationId = parentId;
-      } else if (type === ITEM_TYPES.TEAM) {
-        payload.companyId = parentId;
-      } else if (type === ITEM_TYPES.PROJECT) {
-        payload.teamId = parentId;
+      let newItem;
+      let parentType = null;
+
+      switch (type) {
+        case ITEM_TYPES.ORGANIZATION:
+          newItem = await createOrganization(payload);
+          break;
+        case ITEM_TYPES.TEAM:
+          payload.companyId = parentId;
+          parentType = 'company';
+          newItem = await createTeam(payload);
+          break;
+        case ITEM_TYPES.PROJECT:
+          payload.teamId = parentId;
+          parentType = 'team';
+          newItem = await createProject(payload);
+          break;
+        default:
+          throw new Error(`Unsupported item type: ${type}`);
       }
 
-      const response = await fetch(API_ENDPOINTS[type], {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create item');
+      addItemToHierarchy({ ...newItem, type }, parentId, parentType);
+      
+      // If a team or project was created, the active company needs to be refreshed
+      if (type === ITEM_TYPES.TEAM || type === ITEM_TYPES.PROJECT) {
+          refreshActiveCompany();
       }
 
-      const newItem = await response.json();
-      onSuccess(newItem);
       onClose();
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+       console.error(err.message);
     }
   };
 
@@ -109,7 +118,7 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId, onSuc
             />
           </div>
           {error && (
-            <div className="text-red-400 text-sm">{error}</div>
+            <div className="text-red-400 text-sm">{typeof error === 'string' ? error : error.message}</div>
           )}
           <div className="flex justify-end gap-3 pt-4">
             <button
