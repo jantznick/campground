@@ -1,0 +1,23 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Upgrade npm to the latest stable version to fix bugs in the default version
+RUN npm install -g npm@latest
+
+# Copy root package management files
+COPY package.json package-lock.json* ./
+
+# Copy the package.json files for each workspace to ensure npm can link them
+COPY ./packages/api/package.json ./packages/api/
+COPY ./packages/web/package.json ./packages/web/
+
+# Install all dependencies for the monorepo
+RUN npm install --legacy-peer-deps
+
+# Copy the entire source code
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"] 

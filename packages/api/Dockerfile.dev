@@ -1,0 +1,36 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Upgrade npm to the latest stable version to fix bugs in the default version
+RUN npm install -g npm@latest
+
+# Install openssl for Prisma Engine, which is needed by the api
+RUN apk add --no-cache openssl
+
+# Copy root package management files
+COPY package.json package-lock.json* ./
+
+# Copy the package.json files for each workspace to ensure npm can link them
+COPY ./packages/api/package.json ./packages/api/
+COPY ./packages/web/package.json ./packages/web/
+
+# Install all dependencies for the monorepo
+RUN npm install --legacy-peer-deps --verbose
+
+# Copy the entire source code
+# In development, this will be overwritten by the volume mount in docker-compose.yml
+# but it's good practice to have a complete image.
+COPY . .
+
+# Generate the Prisma client for the API workspace
+RUN npm run prisma:generate --workspace=api
+
+# Copy the api package files
+COPY packages/api/package.json packages/api/
+
+WORKDIR /app/packages/api
+
+EXPOSE 3001
+
+CMD ["npm", "run", "dev"] 

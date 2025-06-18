@@ -1,0 +1,30 @@
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# First, copy only the package management files
+COPY package.json package-lock.json* ./
+
+# Then, copy the package.json files for each workspace
+COPY packages/api/package.json ./packages/api/
+COPY packages/web/package.json ./packages/web/
+
+# Install all dependencies for the monorepo
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Build the web package specifically
+RUN npm run build --workspace=web
+
+# Stage 2: Serve the built application from a lightweight server
+FROM nginx:stable-alpine
+
+# Copy the built assets from the builder stage
+COPY --from=builder /app/packages/web/dist /usr/share/nginx/html
+
+# Expose port 80 and start nginx
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"] 

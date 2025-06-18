@@ -1,0 +1,54 @@
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: stagehand-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - stagehand-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile.dev
+    working_dir: /app
+    command: sh -c "npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma && npm run dev --workspace=api"
+    container_name: stagehand-api
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}?schema=public
+      - PORT=3001
+
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile.dev
+    working_dir: /app
+    command: npm run dev --workspace=web
+    container_name: stagehand-web
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  stagehand-db-data: 
