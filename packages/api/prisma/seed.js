@@ -154,48 +154,15 @@ async function main() {
     // This logic needs to be manually replicated for the seed data
     // to match what the application does.
 
-    console.log('Granting implicit parent read access...');
-    // For companya_admin@test.com (ADMIN of Company A)
-    await prisma.membership.create({ data: { userId: users['companya_admin@test.com'].id, role: 'READER', organizationId: techCorp.id } });
-    
-    // For teamb1_editor@test.com (EDITOR of Team B1)
-    await prisma.membership.createMany({
-        data: [
-            { userId: users['teamb1_editor@test.com'].id, role: 'READER', companyId: companyB.id },
-            { userId: users['teamb1_editor@test.com'].id, role: 'READER', organizationId: techCorp.id },
-        ]
-    });
-    
-    // For projecta21_reader@test.com (READER of Project A2-1)
-     await prisma.membership.createMany({
-        data: [
-            { userId: users['projecta21_reader@test.com'].id, role: 'READER', teamId: teamA2.id },
-            { userId: users['projecta21_reader@test.com'].id, role: 'READER', companyId: companyA.id },
-            { userId: users['projecta21_reader@test.com'].id, role: 'READER', organizationId: techCorp.id },
-        ]
-    });
-    
-    // For pending_user@test.com (READER of Team C2)
-    await prisma.membership.createMany({
-        data: [
-            { userId: users['pending_user@test.com'].id, role: 'READER', companyId: companyC.id },
-            { userId: users['pending_user@test.com'].id, role: 'READER', organizationId: soloDevOrg.id },
-        ]
-    });
-
     // For consultant@test.com
     await prisma.membership.createMany({
         data: [
             // Reader of Company B in TechCorp
             { userId: users['consultant@test.com'].id, role: 'READER', companyId: companyB.id },
-            { userId: users['consultant@test.com'].id, role: 'READER', organizationId: techCorp.id },
             // Editor of Team C1 in SoloDev
             { userId: users['consultant@test.com'].id, role: 'EDITOR', teamId: teamC1.id },
-            { userId: users['consultant@test.com'].id, role: 'READER', companyId: companyC.id },
-            { userId: users['consultant@test.com'].id, role: 'READER', organizationId: soloDevOrg.id },
         ]
     });
-    console.log('Implicit permissions granted.');
 
     console.log('Seeding finished.');
 }
