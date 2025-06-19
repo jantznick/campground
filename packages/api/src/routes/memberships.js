@@ -37,11 +37,14 @@ router.get('/', async (req, res) => {
                 return res.status(400).json({ error: 'A resource ID must be provided.' });
         }
         
+		// TODO: this needs to be updated, a user should be able to view members of a resource if they have a membership above that resource.
         const canView = await hasPermission(req.user, ['ADMIN', 'EDITOR', 'READER'], resourceType, resourceId);
         if (!canView) {
             return res.status(403).json({ error: 'You are not authorized to view members of this resource.' });
         }
 
+		// TODO: this needs to be updated, members listed should be all members of the resource above it the item as well as the item itself.
+		// TODO: consider adding any users that have access below the resource as well as they would be able to view the resource in the ui at a minimum.
         const memberships = await prisma.membership.findMany({
             where: {
                 [`${resourceType}Id`]: resourceId,
