@@ -14,15 +14,15 @@ const RegisterPage = () => {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isInviteFlow, setIsInviteFlow] = useState(false);
-
+  
     const inviteToken = searchParams.get('invite_token');
 
     useEffect(() => {
         if (inviteToken) {
             const verifyToken = async () => {
                 setLoading(true);
-                setError(null);
-                try {
+      setError(null);
+      try {
                     const response = await fetch(`/api/v1/auth/invitation/${inviteToken}`);
                     if (!response.ok) {
                         setError('This invitation is invalid or has expired (links are valid for 24 hours). Please request a new link or continue with regular registration.');
@@ -30,7 +30,7 @@ const RegisterPage = () => {
                         setIsInviteFlow(false);
                         return;
                     }
-                    const data = await response.json();
+        const data = await response.json();
                     setEmail(data.email);
                     setIsInviteFlow(true);
                 } catch (err) {
@@ -49,7 +49,7 @@ const RegisterPage = () => {
         setError(null);
         try {
             await register(email, password);
-            navigate('/dashboard');
+          navigate('/dashboard');
         } catch (err) {
             setError(err.message);
         } finally {
@@ -63,7 +63,7 @@ const RegisterPage = () => {
         try {
             await acceptInvitation(inviteToken, password);
             navigate('/dashboard');
-        } catch (err) {
+      } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
@@ -75,9 +75,9 @@ const RegisterPage = () => {
             handleAcceptInvitation();
         } else {
             handleRegister();
-        }
+      }
     };
-
+  
     return (
         <AuthForm
             formType="register"
@@ -104,5 +104,5 @@ const RegisterPage = () => {
         />
     );
 };
-
+  
 export default RegisterPage; 

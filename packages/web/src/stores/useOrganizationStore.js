@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 
-const useOrganizationStore = create((set) => ({
-    isLoading: false,
-    error: null,
+const useOrganizationStore = create((set) => {
+    const initialState = {
+        isLoading: false,
+        error: null,
+    };
+
+    return {
+        ...initialState,
 
     // Create a new organization
     createOrganization: async (orgData) => {
@@ -112,6 +117,9 @@ const useOrganizationStore = create((set) => ({
              throw error;
         }
     },
-}));
+
+    reset: () => set(initialState),
+    };
+});
 
 export default useOrganizationStore; 

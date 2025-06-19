@@ -25,18 +25,18 @@ const App = () => {
         initializeApp();
     }, [checkAuth]);
 
-    useEffect(() => {
+  useEffect(() => {
         if (user && hierarchy.length === 0) {
-            fetchHierarchy();
+          fetchHierarchy();
         }
     }, [user, fetchHierarchy, hierarchy]);
-
+  
     return (
         <Router>
             <div className="flex h-screen bg-[var(--outer-space)] text-white">
                 {user && <Sidebar />}
-                <main className="flex-1 flex flex-col overflow-y-auto">
-                    <Routes>
+				<main className="flex-1 flex flex-col overflow-y-auto">
+					<Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         <Route 
@@ -48,9 +48,9 @@ const App = () => {
                             element={<PrivateRoute><SettingsPage /></PrivateRoute>} 
                         />
                         <Route path="/*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
-                    </Routes>
-                </main>
-            </div>
+					</Routes>
+				</main>
+			</div>
         </Router>
     );
 };

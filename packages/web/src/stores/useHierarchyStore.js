@@ -31,13 +31,18 @@ const mutator = (nodes, findFn, updateFn) => {
     return false;
 };
 
-const useHierarchyStore = create((set, get) => ({
-    hierarchy: [],
-    selectedItem: null,
-    activeCompany: null,
-    accountType: 'STANDARD',
-    isLoading: false,
-    error: null,
+const useHierarchyStore = create((set, get) => {
+    const initialState = {
+        hierarchy: [],
+        selectedItem: null,
+        activeCompany: null,
+        accountType: 'STANDARD',
+        isLoading: false,
+        error: null,
+    };
+
+    return {
+    ...initialState,
 
     fetchHierarchy: async () => {
         set({ isLoading: true, error: null });
@@ -148,6 +153,9 @@ const useHierarchyStore = create((set, get) => ({
         }
         return {};
     }),
-}));
+
+    reset: () => set(initialState),
+    };
+});
 
 export default useHierarchyStore; 

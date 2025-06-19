@@ -10,7 +10,7 @@ const LoginPage = () => {
     
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState(null);
+  const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const inviteToken = searchParams.get('invite_token');
@@ -23,23 +23,23 @@ const LoginPage = () => {
 
     const handleLogin = async () => {
         setLoading(true);
-        setError(null);
-        try {
+    setError(null);
+    try {
             await login(email, password);
             navigate('/dashboard');
-        } catch (err) {
-            setError(err.message);
+    } catch (err) {
+      setError(err.message);
         } finally {
             setLoading(false);
-        }
-    };
+    }
+  };
 
-    return (
-        <AuthForm
+  return (
+    <AuthForm
             formType="login"
             title="Sign in to your account"
             buttonText="Login"
-            onSubmit={handleLogin}
+      onSubmit={handleLogin}
             error={error}
             loading={loading}
             email={email}
@@ -54,8 +54,8 @@ const LoginPage = () => {
                     </Link>
                 </p>
             }
-        />
-    );
+    />
+  );
 };
 
 export default LoginPage; 

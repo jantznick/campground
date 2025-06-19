@@ -188,7 +188,7 @@ const SettingsPage = () => {
                 <h1 className="text-3xl font-bold capitalize">{`${itemType}: ${name}`}</h1>
                 <button 
                     type="button" 
-                    onClick={() => navigate(-1)} 
+                    onClick={() => navigate('/dashboard')} 
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
                 >
                     <ArrowLeft size={16} /> 

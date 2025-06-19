@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 
-const useProjectStore = create((set) => ({
-    isLoading: false,
-    error: null,
+const useProjectStore = create((set) => {
+    const initialState = {
+        isLoading: false,
+        error: null,
+    };
+
+    return {
+        ...initialState,
 
     // Create a new project
     createProject: async (projectData) => {
@@ -65,6 +70,9 @@ const useProjectStore = create((set) => ({
              throw error;
         }
     },
-}));
+
+    reset: () => set(initialState),
+    };
+});
 
 export default useProjectStore; 

@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 
-const useCompanyStore = create((set) => ({
-    isLoading: false,
-    error: null,
+const useCompanyStore = create((set) => {
+    const initialState = {
+        isLoading: false,
+        error: null,
+    };
+
+    return {
+        ...initialState,
 
     // Create a new company
     createCompany: async (companyData) => {
@@ -65,6 +70,9 @@ const useCompanyStore = create((set) => ({
              throw error;
         }
     },
-}));
+
+    reset: () => set(initialState),
+    };
+});
 
 export default useCompanyStore; 

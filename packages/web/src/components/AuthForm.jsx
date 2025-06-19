@@ -30,12 +30,12 @@ const AuthForm = ({
     buttonText,
     footerContent,
 }) => {
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        onSubmit({ email, password });
-    };
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({ email, password });
+  };
 
-    return (
+  return (
         <div className="flex items-center justify-center min-h-screen bg-[var(--prussian-blue)]">
             <div className="w-full max-w-md p-8 space-y-8 bg-white/5 rounded-2xl shadow-lg border border-white/10 text-white">
                 <div>
@@ -48,35 +48,35 @@ const AuthForm = ({
                              <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                                 <MailIcon className="h-5 w-5 text-gray-500" />
                             </span>
-                            <input
+        <input
                                 id="email-address"
                                 name="email"
-                                type="email"
+          type="email"
                                 autoComplete="email"
                                 required
                                 className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm disabled:bg-black/30 disabled:text-gray-400"
                                 placeholder="Email address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
                                 disabled={isEmailDisabled}
-                            />
-                        </div>
+        />
+      </div>
                         <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                                 <LockIcon className="h-5 w-5 text-gray-500" />
                             </span>
-                            <input
+        <input
                                 id="password"
                                 name="password"
-                                type="password"
+          type="password"
                                 autoComplete={formType === 'login' ? 'current-password' : 'new-password'}
                                 required
                                 className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm"
                                 placeholder="Password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                            />
-                        </div>
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
                     </div>
 
                     {error && <div className="text-red-400 text-sm text-center pt-2">{error}</div>}
@@ -96,10 +96,10 @@ const AuthForm = ({
                             {footerContent}
                         </div>
                     )}
-                </form>
+    </form>
             </div>
         </div>
-    );
+  );
 };
 
 export default AuthForm; 

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { resetAllStores } from './reset';
+import useHierarchyStore from './useHierarchyStore';
 
 export const useAuthStore = create(
   persist(
@@ -19,6 +21,7 @@ export const useAuthStore = create(
         }
         const data = await response.json();
         set({ user: data });
+        useHierarchyStore.getState().fetchHierarchy();
         return data;
       },
 
@@ -34,6 +37,7 @@ export const useAuthStore = create(
         }
         const data = await response.json();
         set({ user: data });
+        useHierarchyStore.getState().fetchHierarchy();
         return data;
       },
 
@@ -43,6 +47,7 @@ export const useAuthStore = create(
         } catch (error) {
             console.error("Logout API call failed", error);
         } finally {
+            resetAllStores();
             set({ user: null });
         }
       },
@@ -58,8 +63,23 @@ export const useAuthStore = create(
         }
         const data = await response.json();
         set({ user: data });
+        useHierarchyStore.getState().fetchHierarchy();
         return data;
       },
+      checkAuth: async () => {
+        set({ isLoading: true });
+        try {
+            const response = await fetch('/api/v1/auth/me');
+            if (response.ok) {
+                const user = await response.json();
+                set({ user, isAuthenticated: true, isLoading: false });
+            } else {
+                set({ user: null, isAuthenticated: false, isLoading: false });
+            }
+        } catch (error) {
+            console.log("Error checking auth", error);
+        }
+    },
     }),
     {
       name: 'user-storage', 
