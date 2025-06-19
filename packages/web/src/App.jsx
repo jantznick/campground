@@ -16,7 +16,7 @@ const PrivateRoute = ({ children }) => {
 
 const App = () => {
     const { user, checkAuth } = useAuthStore();
-    const { fetchHierarchy, hierarchy } = useHierarchyStore();
+    const { fetchHierarchy, hierarchy, setInitialActiveItems, activeOrganization } = useHierarchyStore();
 
     useEffect(() => {
         const initializeApp = async () => {
@@ -29,11 +29,18 @@ const App = () => {
         if (user && hierarchy.length === 0) {
           fetchHierarchy();
         }
-    }, [user, fetchHierarchy, hierarchy]);
+    }, [user, fetchHierarchy, hierarchy.length]);
   
+    useEffect(() => {
+        // When hierarchy data arrives and there's no active org, set the initial one.
+        if (user && hierarchy.length > 0 && !activeOrganization) {
+            setInitialActiveItems();
+        }
+    }, [user, hierarchy, activeOrganization, setInitialActiveItems]);
+
     return (
         <Router>
-            <div className="flex h-screen bg-[var(--outer-space)] text-white">
+            <div className="flex h-screen bg-[var(--prussian-blue)] text-white">
                 {user && <Sidebar />}
 				<main className="flex-1 flex flex-col overflow-y-auto">
 					<Routes>

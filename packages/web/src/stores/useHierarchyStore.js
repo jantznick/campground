@@ -34,6 +34,7 @@ const mutator = (nodes, findFn, updateFn) => {
 const useHierarchyStore = create((set, get) => {
     const initialState = {
         hierarchy: [],
+        activeOrganization: null,
         selectedItem: null,
         activeCompany: null,
         accountType: 'STANDARD',
@@ -44,6 +45,41 @@ const useHierarchyStore = create((set, get) => {
     return {
     ...initialState,
 
+    setInitialActiveItems: () => set(state => {
+        if (!state.hierarchy || state.hierarchy.length === 0 || state.activeOrganization) {
+            return {}; // No data to set or already set
+        }
+        const initialOrg = state.hierarchy[0];
+        let initialCompany = null;
+        if (initialOrg.accountType === 'STANDARD' && initialOrg.defaultCompanyId) {
+            initialCompany = initialOrg.companies?.find(c => c.id === initialOrg.defaultCompanyId) || initialOrg.companies?.[0] || null;
+        } else {
+            initialCompany = initialOrg.companies?.[0] || null;
+        }
+
+        return { 
+            activeOrganization: initialOrg, 
+            activeCompany: initialCompany,
+            accountType: initialOrg.accountType || 'STANDARD'
+        };
+    }),
+    
+    setActiveOrganization: (organization) => set(state => {
+        let newActiveCompany = null;
+        if (organization.accountType === 'STANDARD' && organization.defaultCompanyId) {
+            newActiveCompany = organization.companies?.find(c => c.id === organization.defaultCompanyId) || organization.companies?.[0] || null;
+        } else {
+            newActiveCompany = organization.companies?.[0] || null;
+        }
+
+        return { 
+            activeOrganization: organization, 
+            activeCompany: newActiveCompany, 
+            selectedItem: organization,
+            accountType: organization.accountType || 'STANDARD'
+        };
+    }),
+
     fetchHierarchy: async () => {
         set({ isLoading: true, error: null });
         try {
@@ -51,35 +87,15 @@ const useHierarchyStore = create((set, get) => {
             if (!response.ok) throw new Error('Failed to fetch hierarchy data');
             
             const hierarchy = await response.json();
-            const mainOrg = hierarchy.length > 0 ? hierarchy[0] : null;
             
-            if (!mainOrg) {
-                 set({ hierarchy: [], isLoading: false, activeCompany: null, accountType: 'STANDARD' });
-                 return;
-            }
-
-            const accountType = mainOrg.accountType || 'STANDARD';
-            const allCompanies = mainOrg.companies || [];
-            let newActiveCompany = get().activeCompany;
-
-            const activeCompanyStillExists = newActiveCompany && allCompanies.some(c => c.id === newActiveCompany.id);
-
-            if (!activeCompanyStillExists) {
-                if (accountType === 'STANDARD') {
-                    newActiveCompany = allCompanies.find(c => c.id === mainOrg.defaultCompanyId) || allCompanies[0] || null;
-                } else {
-                    newActiveCompany = allCompanies[0] || null;
-                }
-            }
-            
-            set({ hierarchy, isLoading: false, activeCompany: newActiveCompany, accountType });
+            set({ hierarchy, isLoading: false }); // Only sets the data, no more UI logic
         } catch (error) {
             set({ error: error.message, isLoading: false });
         }
     },
 
     setSelectedItem: (item) => set({ selectedItem: item }),
-    setActiveCompany: (company) => set({ activeCompany: company }),
+    setActiveCompany: (company) => set({ activeCompany: company, selectedItem: company }),
 
     // Replaces the old complex updateItem with granular, immutable updates using Immer
     addItem: (item, parentId, parentType) => set(produce(draft => {
@@ -139,14 +155,22 @@ const useHierarchyStore = create((set, get) => {
         if (selected && selected.id === updatedItem.id && selected.type === updatedItem.type) {
             set({ selectedItem: { ...selected, ...updatedItem }});
         }
+        // Also update active items if they are the one being changed
+        const activeOrg = get().activeOrganization;
+        if (activeOrg && activeOrg.id === updatedItem.id && activeOrg.type === updatedItem.type) {
+            set({ activeOrganization: { ...activeOrg, ...updatedItem }});
+        }
+        const activeComp = get().activeCompany;
+        if (activeComp && activeComp.id === updatedItem.id && activeComp.type === updatedItem.type) {
+            set({ activeCompany: { ...activeComp, ...updatedItem }});
+        }
     })),
     
     refreshActiveCompany: () => set(state => {
-        const { activeCompany, hierarchy } = state;
-        if (!activeCompany || !hierarchy.length) return {};
+        const { activeCompany, activeOrganization } = state;
+        if (!activeCompany || !activeOrganization) return {};
 
-        const org = hierarchy[0];
-        const updatedCompany = org.companies.find(c => c.id === activeCompany.id);
+        const updatedCompany = activeOrganization.companies.find(c => c.id === activeCompany.id);
 
         if (updatedCompany) {
             return { activeCompany: updatedCompany };

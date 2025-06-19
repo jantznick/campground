@@ -2,12 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useHierarchyStore from '../../stores/useHierarchyStore';
 import useCompanyStore from '../../stores/useCompanyStore';
-import useUIStore from '../../stores/useUIStore';
-import useOrganizationStore from '../../stores/useOrganizationStore';
 import { ChevronsUpDown, Check, Building, Plus, Settings } from 'lucide-react';
 
 const CompanySwitcher = ({ isCollapsed }) => {
-  const { hierarchy, activeCompany, setActiveCompany, addItem: addItemToHierarchy } = useHierarchyStore();
+  const { activeOrganization, activeCompany, setActiveCompany, addItem: addItemToHierarchy } = useHierarchyStore();
   const { createCompany } = useCompanyStore();
   const [isPopoverOpen, setPopoverOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -17,10 +15,10 @@ const CompanySwitcher = ({ isCollapsed }) => {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  const allCompanies = hierarchy.flatMap(org => org.companies || []);
+  const allCompanies = activeOrganization?.companies || [];
 
   const handleEditClick = (e, companyId) => {
-    e.stopPropagation(); // prevent the company from being selected
+    e.stopPropagation();
     navigate(`/settings/company/${companyId}`);
     setPopoverOpen(false);
   };
@@ -37,34 +35,19 @@ const CompanySwitcher = ({ isCollapsed }) => {
 
   const handleCreateCompany = async (e) => {
     e.preventDefault();
-    if (!newCompanyName.trim() || !activeCompany) return;
-
-    // Find the organization of the current active company
-    const org = hierarchy.find(o => o.companies.some(c => c.id === activeCompany.id));
-    if (!org) {
-        console.error("Could not find organization for the active company.");
-        // Maybe show an error to the user
-        return;
-    }
-
+    if (!newCompanyName.trim() || !activeOrganization) return;
+    
     try {
-      const newCompany = await createCompany({ name: newCompanyName, organizationId: org.id });
-      
-      // Reset state
+      const newCompany = await createCompany({ name: newCompanyName, organizationId: activeOrganization.id });
+      addItemToHierarchy({ ...newCompany, type: 'company' }, activeOrganization.id, 'organization');
+      setActiveCompany({ ...newCompany, type: 'company' });
       setNewCompanyName("");
       setIsAdding(false);
-      
-      // Add to hierarchy locally and set as active
-      addItemToHierarchy({ ...newCompany, type: 'company' }, org.id, 'organization');
-      setActiveCompany({ ...newCompany, type: 'company' });
-
     } catch (error) {
       console.error(error);
-      // Handle error UI
     }
   };
 
-  // Close popover if clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (popoverRef.current && !popoverRef.current.contains(event.target)) {
@@ -108,8 +91,8 @@ const CompanySwitcher = ({ isCollapsed }) => {
         <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
           <Building size={20} className="flex-shrink-0 text-[var(--xanthous)]" />
           {!isCollapsed && (
-            <span className="transition-opacity duration-200">
-              <span className="block text-sm font-semibold text-left text-white truncate">{activeCompany.name}</span>
+            <span className="transition-opacity duration-200 text-left">
+              <span className="block text-sm font-semibold text-white truncate">{activeCompany.name}</span>
               <span className="block text-xs text-left text-white/60">Active Company</span>
             </span>
           )}
