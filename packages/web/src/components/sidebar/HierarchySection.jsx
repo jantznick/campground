@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import OrganizationSwitcher from './OrganizationSwitcher';
 
 function HierarchySection({ isCollapsed }) {
-	const { activeCompany, fetchHierarchy, hierarchy, activeOrganization } = useHierarchyStore();
+	const { activeCompany, fetchHierarchy, hierarchy, activeOrganization, getDisplayName } = useHierarchyStore();
 	const [modalState, setModalState] = useState({ isOpen: false, type: null, parentId: null });
 	const [expandedTeamId, setExpandedTeamId] = useState(null);
 	const [isOrgPopoverOpen, setOrgPopoverOpen] = useState(false);
@@ -57,7 +57,7 @@ function HierarchySection({ isCollapsed }) {
 	if (!activeOrganization) {
 		return (
 			<div className={`px-3 py-2 text-sm text-[var(--vanilla)]/60 ${isCollapsed ? 'hidden' : 'block'}`}>
-				Loading organization...
+				Loading {getDisplayName('organization', 'singular')}...
 			</div>
 		);
 	}
@@ -71,7 +71,7 @@ function HierarchySection({ isCollapsed }) {
 					<button
 						onClick={() => setOrgPopoverOpen(prev => !prev)}
 						className="w-full flex items-center justify-between p-2 text-white/60 hover:bg-white/10 rounded-lg"
-						title="Switch Organization"
+						title={`Switch ${getDisplayName('organization', 'singular')}`}
 					>
 						<h2 className="font-bold text-lg text-white break-words" title={activeOrganization.name}>
 							{activeOrganization.name}
@@ -86,7 +86,7 @@ function HierarchySection({ isCollapsed }) {
 					<button
 						onClick={handleOrgSettingsClick}
 						className="p-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white"
-						title="Organization Settings"
+						title={`${getDisplayName('organization', 'singular')} Settings`}
 					>
 						<Settings size={18} />
 					</button>
@@ -96,12 +96,12 @@ function HierarchySection({ isCollapsed }) {
 
 			{/* Teams Section */}
 			<div className={`flex items-center justify-between px-3 mb-2 transition-all duration-300 ${isCollapsed ? 'opacity-0 h-0' : 'opacity-100 h-auto'}`}>
-				<span className="uppercase text-xs tracking-wider text-[var(--vanilla)]/60 font-semibold">Teams</span>
+				<span className="uppercase text-xs tracking-wider text-[var(--vanilla)]/60 font-semibold">{getDisplayName('team', 'plural')}</span>
 				{activeCompany && (
 					<button
 						onClick={() => handleCreateItem(ITEM_TYPES.TEAM, activeCompany.id)}
 						className="p-1 rounded-lg hover:bg-white/10 text-[var(--vanilla)]/60 hover:text-[var(--xanthous)]"
-						title="Add new Team"
+						title={`Add new ${getDisplayName('team', 'singular')}`}
 					>
 						<Plus size={14} />
 					</button>
@@ -121,7 +121,7 @@ function HierarchySection({ isCollapsed }) {
 					))
 				) : (
 					<li className={`px-3 py-1 text-xs text-[var(--vanilla)]/60 ${isCollapsed ? 'hidden' : 'block'}`}>
-						{activeCompany ? 'No teams yet.' : 'Select a company to see teams.'}
+						{activeCompany ? `No ${getDisplayName('team', 'plural')} yet.` : `Select a ${getDisplayName('company', 'singular')} to see ${getDisplayName('team', 'plural')}.`}
 					</li>
 				)}
 			</ul>

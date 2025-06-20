@@ -14,7 +14,7 @@ const ITEM_TYPES = {
 export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const { addItem: addItemToHierarchy, refreshActiveCompany } = useHierarchyStore();
+  const { addItem: addItemToHierarchy, refreshActiveCompany, getDisplayName } = useHierarchyStore();
   
   const { createTeam, isLoading: teamLoading, error: teamError } = useTeamStore();
   const { createProject, isLoading: projectLoading, error: projectError } = useProjectStore();
@@ -75,12 +75,14 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
 
   if (!isOpen) return null;
 
+  const singularDisplayName = getDisplayName(type, 'singular');
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-[var(--prussian-blue)] rounded-xl shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-6 border-b border-white/10">
           <h2 className="text-xl font-semibold text-[var(--vanilla)]">
-            Create New {type.charAt(0).toUpperCase() + type.slice(1)}
+            Create New {singularDisplayName}
           </h2>
           <button
             onClick={onClose}
@@ -100,7 +102,7 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[var(--vanilla)] placeholder-[var(--vanilla)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
-              placeholder={`Enter ${type} name`}
+              placeholder={`Enter ${singularDisplayName} name`}
               required
             />
           </div>
@@ -113,7 +115,7 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-[var(--vanilla)] placeholder-[var(--vanilla)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
-              placeholder={`Enter ${type} description`}
+              placeholder={`Enter ${singularDisplayName} description`}
               rows={3}
             />
           </div>

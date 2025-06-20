@@ -6,7 +6,7 @@ import { ITEM_TYPES } from '../../lib/constants';
 import { Link, useNavigate } from 'react-router-dom';
 
 const TeamItem = ({ team, isExpanded, onToggle, onCreateItem, isCollapsed }) => {
-  const { selectedItem, setSelectedItem } = useHierarchyStore();
+  const { selectedItem, setSelectedItem, getDisplayName } = useHierarchyStore();
   const navigate = useNavigate();
 
   const handleToggle = () => {
@@ -59,11 +59,11 @@ const TeamItem = ({ team, isExpanded, onToggle, onCreateItem, isCollapsed }) => 
               <ul className="space-y-1">
                 {/* Projects Header and "Add Project" Button */}
                 <li className="flex items-center justify-between px-3 mt-1 mb-2">
-                  <span className="uppercase text-xs tracking-wider text-[var(--vanilla)]/60 font-semibold">Projects</span>
+                  <span className="uppercase text-xs tracking-wider text-[var(--vanilla)]/60 font-semibold">{getDisplayName('project', 'plural')}</span>
                   <button
                     onClick={() => onCreateItem(ITEM_TYPES.PROJECT, team.id)}
                     className="p-1 rounded-lg hover:bg-white/10 text-[var(--vanilla)]/60 hover:text-[var(--xanthous)]"
-                    title="Add new Project"
+                    title={`Add new ${getDisplayName('project', 'singular')}`}
                   >
                     <Plus size={14} />
                   </button>
@@ -73,7 +73,7 @@ const TeamItem = ({ team, isExpanded, onToggle, onCreateItem, isCollapsed }) => 
                 {team.projects && team.projects.length > 0 ? (
                   team.projects.map(project => <ProjectItem key={project.id} project={project} isCollapsed={isCollapsed} />)
                 ) : (
-                  <li className="px-3 py-1 text-xs text-[var(--vanilla)]/60">No projects yet.</li>
+                  <li className="px-3 py-1 text-xs text-[var(--vanilla)]/60">No {getDisplayName('project', 'plural')} yet.</li>
                 )}
               </ul>
             </div>

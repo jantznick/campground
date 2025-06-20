@@ -6,6 +6,7 @@ import useCompanyStore from '../stores/useCompanyStore';
 import useTeamStore from '../stores/useTeamStore';
 import useProjectStore from '../stores/useProjectStore';
 import AccessManagement from '../components/settings/AccessManagement';
+import HierarchySettings from '../components/settings/HierarchySettings';
 import { ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
 
 const findItemRecursive = (nodes, targetId, targetType) => {
@@ -39,7 +40,8 @@ const SettingsPage = () => {
         removeItem: removeHierarchyItem, 
         refreshActiveCompany,
         fetchHierarchy,
-        hierarchy 
+        hierarchy,
+        getDisplayName
     } = useHierarchyStore();
 
     // Get actions from all relevant stores
@@ -131,7 +133,7 @@ const SettingsPage = () => {
                     refreshActiveCompany();
                     break;
                 default:
-                    throw new Error(`Deletion of ${itemType} is not supported.`);
+                    throw new Error(`Deletion of ${getDisplayName(itemType, 'singular')} is not supported.`);
             }
 
             navigate('/dashboard');
@@ -167,7 +169,7 @@ const SettingsPage = () => {
                     throw new Error(`Unsupported item type: ${itemType}`);
             }
             
-            setSuccess(`${itemType} updated successfully!`);
+            setSuccess(`${getDisplayName(itemType, 'singular')} updated successfully!`);
             updateHierarchyItem({ ...updatedData, type: itemType });
 			setTimeout(() => {
 				setSuccess(null);
@@ -185,7 +187,7 @@ const SettingsPage = () => {
     return (
         <div className="p-8 max-w-4xl min-w-3/4 mx-auto text-white">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold capitalize">{`${itemType}: ${name}`}</h1>
+                <h1 className="text-3xl font-bold capitalize">{`${getDisplayName(itemType, 'singular')}: ${name}`}</h1>
                 <button 
                     type="button" 
                     onClick={() => navigate('/dashboard')} 
@@ -233,6 +235,8 @@ const SettingsPage = () => {
 
             <AccessManagement resourceType={itemType} resourceId={id} />
 
+            {itemType === 'organization' && <HierarchySettings />}
+
             {itemType === 'organization' && organization && (
                 <div className="mt-8">
                     <h2 className="text-xl font-bold mb-4">Account Plan</h2>
@@ -242,7 +246,7 @@ const SettingsPage = () => {
                                 <>
                                     <div>
                                         <h3 className="font-bold text-lg">Enterprise Plan</h3>
-                                        <p className="text-sm text-white/60">You can manage multiple companies.</p>
+                                        <p className="text-sm text-white/60">You can manage multiple {getDisplayName('company', 'plural')}.</p>
                                     </div>
                                     <button 
                                         onClick={() => setIsDowngrading(!isDowngrading)}
@@ -255,7 +259,7 @@ const SettingsPage = () => {
                                 <>
                                     <div>
                                         <h3 className="font-bold text-lg">Standard Plan</h3>
-                                        <p className="text-sm text-white/60">Upgrade to manage multiple companies.</p>
+                                        <p className="text-sm text-white/60">You can manage a single {getDisplayName('company', 'singular')}.</p>
                                     </div>
                                     <button
                                         onClick={handleUpgrade}
@@ -267,27 +271,20 @@ const SettingsPage = () => {
                             )}
                         </div>
                         {isDowngrading && (
-                            <div className="mt-6 pt-6 border-t border-white/10">
-                                <h4 className="font-bold text-md text-red-300 mb-2">Confirm Downgrade</h4>
-                                <p className="text-sm text-white/60 mb-4">
-                                    To downgrade, you must select one company to become the default for your organization.
-                                    You will not lose any data, but you will only be able to access this single company until you upgrade again.
+                            <div className="mt-4 p-4 bg-black/30 rounded-lg">
+                                <p className="text-sm mb-4">
+                                    To downgrade, you must select one {getDisplayName('company', 'singular')} to become the default. 
+                                    All other {getDisplayName('company', 'plural')} will remain, but will be hidden until you upgrade back to Enterprise.
                                 </p>
-                                <div className="space-y-4 max-w-sm">
-                                    <label htmlFor="company-select" className="block text-sm font-medium text-gray-300">Select Default Company</label>
-                                    <select
-                                        id="company-select"
-                                        value={companyToKeep}
-                                        onChange={(e) => setCompanyToKeep(e.target.value)}
-                                        className="block w-full px-4 py-3 bg-black/20 border border-white/10 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
-                                    >
-                                        <option value="" disabled>-- Please select a company --</option>
-                                        {organization.companies.map(company => (
-                                            <option key={company.id} value={company.id}>{company.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="flex justify-end gap-4 mt-6">
+                                <select 
+                                    value={companyToKeep}
+                                    onChange={(e) => setCompanyToKeep(e.target.value)}
+                                    className="w-full p-2 bg-black/20 border border-white/10 rounded-lg"
+                                >
+                                    <option value="">Select a {getDisplayName('company', 'singular')}...</option>
+                                    {organization.companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <div className="flex justify-end gap-4 mt-4">
                                     <button onClick={() => setIsDowngrading(false)} className="px-5 py-2 text-white/80 font-bold rounded-lg hover:bg-white/10">
                                         Cancel
                                     </button>
@@ -302,34 +299,44 @@ const SettingsPage = () => {
             )}
 
             {itemTypeIsDeletable && (
-                 <div className="mt-8">
+                <div className="mt-8">
                     <h2 className="text-xl font-bold mb-4 text-red-400">Danger Zone</h2>
-                    <div className="bg-red-900/50 p-6 rounded-xl border border-red-500/50">
+                    <div className="bg-red-900/50 p-6 rounded-xl border border-red-400/50">
                         <div className="flex justify-between items-center">
                             <div>
-                                <h3 className="font-bold text-lg text-red-300">Delete this {itemType}</h3>
-                                <p className="text-sm text-red-300/80">Once you delete it, there is no going back. Please be certain.</p>
+                                <h3 className="font-bold">Delete this {getDisplayName(itemType, 'singular')}</h3>
+                                <p className="text-sm text-red-300/80">
+                                    Once deleted, it's gone forever. Please be certain.
+                                </p>
                             </div>
-                            <button 
-                                onClick={() => setIsDeleting(!isDeleting)}
+                            <button
+                                onClick={() => setIsDeleting(true)}
                                 className="px-5 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700"
                             >
-                                {isDeleting ? 'Cancel' : `Delete ${itemType}`}
+                                Delete
                             </button>
                         </div>
-                        {isDeleting && (
-                            <div className="mt-6 pt-6 border-t border-red-500/50">
-                                <h4 className="font-bold text-md text-red-300 mb-4">Are you absolutely sure?</h4>
-                                <div className="flex justify-end">
-                                    <button 
-                                        onClick={handleDelete} 
-                                        className="px-5 py-2 bg-red-800 text-white font-bold rounded-lg hover:bg-red-700 w-full"
-                                    >
-                                        I understand the consequences, delete this {itemType}
-                                    </button>
+                    </div>
+                </div>
+            )}
+             {isDeleting && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                    <div className="bg-[var(--prussian-blue)] p-8 rounded-xl shadow-2xl border border-white/10 max-w-md w-full">
+                        <div className="flex items-start gap-4">
+                            <div className="bg-red-500/10 p-3 rounded-full border border-red-500/30">
+                                <ShieldAlert className="text-red-400" size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white">Delete {getDisplayName(itemType, 'singular')}</h3>
+                                <p className="mt-2 text-white/70">
+                                    Are you sure you want to delete this {getDisplayName(itemType, 'singular')}? All associated data will be removed. This action cannot be undone.
+                                </p>
+                                <div className="mt-6 flex justify-end gap-4">
+                                    <button onClick={() => setIsDeleting(false)} className="px-4 py-2 text-sm text-white/80 rounded-lg hover:bg-white/10">Cancel</button>
+                                    <button onClick={handleDelete} className="px-4 py-2 text-sm bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">Confirm & Delete</button>
                                 </div>
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             )}

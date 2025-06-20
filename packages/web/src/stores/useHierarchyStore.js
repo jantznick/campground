@@ -42,8 +42,26 @@ const useHierarchyStore = create((set, get) => {
     error: null,
     };
 
+    const defaultNames = {
+        organization: { singular: 'Organization', plural: 'Organizations' },
+        company: { singular: 'Company', plural: 'Companies' },
+        team: { singular: 'Team', plural: 'Teams' },
+        project: { singular: 'Project', plural: 'Projects' },
+    };
+
     return {
     ...initialState,
+
+    getDisplayName: (type, form = 'singular') => {
+        const { activeOrganization } = get();
+        const customNames = activeOrganization?.hierarchyDisplayNames;
+        
+        if (customNames && customNames[type] && customNames[type][form]) {
+            return customNames[type][form];
+        }
+        
+        return defaultNames[type]?.[form] || type;
+    },
 
     setInitialActiveItems: () => set(state => {
         if (!state.hierarchy || state.hierarchy.length === 0 || state.activeOrganization) {

@@ -39,7 +39,7 @@ router.get('/:id', async (req, res) => {
 // PUT /api/v1/organizations/:id - Update an organization
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, description, accountType, defaultCompanyId } = req.body;
+    const { name, description, accountType, defaultCompanyId, hierarchyDisplayNames } = req.body;
 
     const canUpdate = await hasPermission(req.user, 'ADMIN', 'organization', id);
     if (!canUpdate) {
@@ -84,6 +84,7 @@ router.put('/:id', async (req, res) => {
         if (description !== undefined) dataToUpdate.description = description;
         if (accountType) dataToUpdate.accountType = accountType;
         if (defaultCompanyId) dataToUpdate.defaultCompanyId = defaultCompanyId;
+        if (hierarchyDisplayNames) dataToUpdate.hierarchyDisplayNames = hierarchyDisplayNames;
 
         const updatedOrganization = await prisma.organization.update({
             where: { id },
