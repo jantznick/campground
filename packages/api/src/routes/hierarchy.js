@@ -108,7 +108,7 @@ router.get('/', async (req, res) => {
             const companies = allCompanies.filter(c => c.organizationId === o.id);
             return { ...o, type: 'organization', companies: companies.map(c => companyMap.get(c.id)).filter(Boolean) };
         });
-
+        
         res.status(200).json(hierarchy);
 
     } catch (error) {

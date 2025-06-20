@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import useMembershipStore from '../../stores/useMembershipStore';
-import { Trash2, Edit, Save, X, Plus, Copy, Check, Send } from 'lucide-react';
+import { Trash2, Edit, Save, X, Plus, Copy, Check, Send, Info } from 'lucide-react';
+
+const Tooltip = ({ children, text }) => {
+    const [show, setShow] = useState(false);
+    return (
+        <div className="relative flex items-center" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+            {children}
+            {show && (
+                <div className="absolute bottom-full mb-2 w-max px-2 py-1 bg-black text-white text-xs rounded-md shadow-lg z-10">
+                    {text}
+                </div>
+            )}
+        </div>
+    );
+};
 
 const AccessManagement = ({ resourceType, resourceId }) => {
     const { members, fetchMembers, addMember, removeMember, updateMemberRole, resendInvitation, loading, error, invitationLink } = useMembershipStore();
@@ -38,8 +52,8 @@ const AccessManagement = ({ resourceType, resourceId }) => {
     };
 
     const startEditing = (member) => {
-        setEditingMemberId(member.id);
-        setEditingRole(member.role);
+        setEditingMemberId(member.user.id);
+        setEditingRole(member.effectiveRole);
     };
 
     const cancelEditing = () => {
@@ -105,8 +119,10 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                 {/* Members List */}
                 <div className="space-y-4">
                     {loading && members.length === 0 ? <p>Loading members...</p> :
-                     members.map(member => (
-                        <div key={member.id} className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                     members.map(member => {
+                        const isDirectMember = member.roleSourceId === resourceId;
+                        return (
+                        <div key={member.user.id} className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
                                 <span className="font-medium">{member.user.email}</span>
                                 {member.user.status === 'PENDING' && (
@@ -116,38 +132,52 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                 )}
                             </div>
                             <div className="flex items-center gap-4">
-                                {member.user.status === 'PENDING' ? (
-                                    <button 
-                                        onClick={() => resendInvitation(member.user.id)} 
+                                {member.user.status === 'ACTIVE' && (
+                                    editingMemberId === member.user.id ? (
+                                        <>
+                                            <select
+                                                value={editingRole}
+                                                onChange={(e) => setEditingRole(e.target.value)}
+                                                className="px-4 py-1 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--orange-wheel)]"
+                                                disabled={!isDirectMember}
+                                            >
+                                                <option value="READER">Reader</option>
+                                                <option value="EDITOR">Editor</option>
+                                                <option value="ADMIN">Admin</option>
+                                            </select>
+                                            <button onClick={() => handleUpdateRole(member.id)} className="text-green-400 hover:text-green-300"><Save size={18} /></button>
+                                            <button onClick={cancelEditing} className="text-gray-400 hover:text-white"><X size={18} /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-sm uppercase text-gray-400 px-2 py-1 bg-black/30 rounded-md">{member.effectiveRole}</span>
+                                            {isDirectMember ? (
+                                                <button onClick={() => startEditing(member)} className="text-gray-400 hover:text-white"><Edit size={18} /></button>
+                                            ) : (
+                                                <Tooltip text={member.roleSource}>
+                                                    <Info size={16} className="text-gray-400" />
+                                                </Tooltip>
+                                            )}
+                                        </>
+                                    )
+                                )}
+
+                                {member.user.status === 'PENDING' && (
+                                    <button
+                                        onClick={() => resendInvitation(member.user.id)}
                                         className="text-gray-300 hover:text-[var(--orange-wheel)] transition-colors flex items-center gap-2 text-sm"
                                         disabled={loading}
                                     >
                                         <Send size={16} /> Resend Invite
                                     </button>
-                                ) : editingMemberId === member.id ? (
-                                    <>
-                                        <select
-                                            value={editingRole}
-                                            onChange={(e) => setEditingRole(e.target.value)}
-                                            className="px-4 py-1 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--orange-wheel)]"
-                                        >
-                                            <option value="READER">Reader</option>
-                                            <option value="EDITOR">Editor</option>
-                                            <option value="ADMIN">Admin</option>
-                                        </select>
-                                        <button onClick={() => handleUpdateRole(member.id)} className="text-green-400 hover:text-green-300"><Save size={18} /></button>
-                                        <button onClick={cancelEditing} className="text-gray-400 hover:text-white"><X size={18} /></button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-sm uppercase text-gray-400 px-2 py-1 bg-black/30 rounded-md">{member.role}</span>
-                                        <button onClick={() => startEditing(member)} className="text-gray-400 hover:text-white"><Edit size={18} /></button>
-                                    </>
                                 )}
-                                <button onClick={() => removeMember(member.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
+
+                                {isDirectMember && (
+                                    <button onClick={() => removeMember(member.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
+                                )}
                             </div>
                         </div>
-                    ))}
+                     )})}
                     {!loading && members.length === 0 && <p>No members found.</p>}
                 </div>
             </div>

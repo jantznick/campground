@@ -2,8 +2,8 @@ import { create } from 'zustand';
 
 const useProjectStore = create((set) => {
     const initialState = {
-        isLoading: false,
-        error: null,
+    isLoading: false,
+    error: null,
     };
 
     return {

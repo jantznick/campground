@@ -79,12 +79,12 @@ export const useAuthStore = create(
         } catch (error) {
             console.log("Error checking auth", error);
         }
-    },
+      },
     }),
     {
       name: 'user-storage', 
     }
   )
-);
+); 
 
 export default useAuthStore; 

@@ -4,9 +4,9 @@ const DEFAULT_WIDTH = 288; // Corresponds to w-72
 
 const useUIStore = create((set) => {
     const initialState = {
-        isSidebarCollapsed: false,
-        sidebarWidth: DEFAULT_WIDTH,
-        isResizing: false,
+  isSidebarCollapsed: false,
+  sidebarWidth: DEFAULT_WIDTH,
+  isResizing: false,
     };
     return {
         ...initialState,

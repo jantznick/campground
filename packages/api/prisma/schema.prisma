@@ -41,6 +41,7 @@ model Organization {
   name             String
   description      String?
   accountType      String    @default("STANDARD") // STANDARD or ENTERPRISE
+  hierarchyDisplayNames Json?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   defaultCompanyId String?

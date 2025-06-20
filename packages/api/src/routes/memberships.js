@@ -3,73 +3,148 @@ import { PrismaClient } from '@prisma/client';
 import { protect } from '../middleware/authMiddleware.js';
 import { hasPermission } from '../utils/permissions.js';
 import crypto from 'crypto';
+import { getAncestors, getDescendants } from '../utils/hierarchy.js';
 
 const prisma = new PrismaClient();
 const router = Router();
 
 router.use(protect);
 
-// Get members for a resource
+// Get members for a resource with effective permissions
 router.get('/', async (req, res) => {
     const { organizationId, companyId, teamId, projectId } = req.query;
 
     try {
         let resourceType, resourceId;
 
-        switch (true) {
-            case !!organizationId:
-                resourceType = 'organization';
-                resourceId = organizationId;
-                break;
-            case !!companyId:
-                resourceType = 'company';
-                resourceId = companyId;
-                break;
-            case !!teamId:
-                resourceType = 'team';
-                resourceId = teamId;
-                break;
-            case !!projectId:
-                resourceType = 'project';
-                resourceId = projectId;
-                break;
-            default:
-                return res.status(400).json({ error: 'A resource ID must be provided.' });
+        if (organizationId) {
+            resourceType = 'organization';
+            resourceId = organizationId;
+        } else if (companyId) {
+            resourceType = 'company';
+            resourceId = companyId;
+        } else if (teamId) {
+            resourceType = 'team';
+            resourceId = teamId;
+        } else if (projectId) {
+            resourceType = 'project';
+            resourceId = projectId;
+        } else {
+            return res.status(400).json({ error: 'A resource ID must be provided.' });
         }
-        
-		// TODO: this needs to be updated, a user should be able to view members of a resource if they have a membership above that resource.
+
+        // Authorization Check: Ensure the requesting user can view the requested resource.
         const canView = await hasPermission(req.user, ['ADMIN', 'EDITOR', 'READER'], resourceType, resourceId);
         if (!canView) {
             return res.status(403).json({ error: 'You are not authorized to view members of this resource.' });
         }
 
-		// TODO: this needs to be updated, members listed should be all members of the resource above it the item as well as the item itself.
-		// TODO: consider adding any users that have access below the resource as well as they would be able to view the resource in the ui at a minimum.
-        const memberships = await prisma.membership.findMany({
+        // 1. Get the full resource tree (ancestors and descendants)
+        const ancestors = await getAncestors(resourceType, resourceId);
+        const descendants = await getDescendants(resourceType, resourceId);
+
+        const resourceTreeIds = {
+            organizationIds: [ancestors.organizationId, resourceType === 'organization' ? resourceId : null].filter(Boolean),
+            companyIds: [ancestors.companyId, resourceType === 'company' ? resourceId : null, ...descendants.companyIds].filter(Boolean),
+            teamIds: [ancestors.teamId, resourceType === 'team' ? resourceId : null, ...descendants.teamIds].filter(Boolean),
+            projectIds: [resourceType === 'project' ? resourceId : null, ...descendants.projectIds].filter(Boolean),
+        };
+
+        // 2. Gather all memberships related to the tree
+        const allMemberships = await prisma.membership.findMany({
             where: {
-                [`${resourceType}Id`]: resourceId,
+                OR: [
+                    { organizationId: { in: resourceTreeIds.organizationIds } },
+                    { companyId: { in: resourceTreeIds.companyIds } },
+                    { teamId: { in: resourceTreeIds.teamIds } },
+                    { projectId: { in: resourceTreeIds.projectIds } },
+                ],
             },
             include: {
                 user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        password: true,
-                    },
+                    select: { id: true, email: true, password: true },
                 },
             },
         });
 
-        const membersWithStatus = memberships.map(m => ({
-            ...m,
-            user: {
-                id: m.user.id,
-                email: m.user.email,
-                status: m.user.password ? 'ACTIVE' : 'PENDING',
-            }
-        }));
+        // 3. Calculate "Effective Role" for each user
+        const effectiveMembers = new Map();
 
-        res.json(membersWithStatus);
+        for (const m of allMemberships) {
+            if (!m.user) continue;
+
+            const userId = m.user.id;
+            let currentUserData = effectiveMembers.get(userId);
+            if (!currentUserData) {
+                effectiveMembers.set(userId, {
+                    user: {
+                        id: m.user.id,
+                        email: m.user.email,
+                        status: m.user.password ? 'ACTIVE' : 'PENDING',
+                    },
+                    effectiveRole: 'VIEWER', // Default to viewer
+                    roleSource: 'viewer',
+                    roleSourceType: null,
+                    roleSourceId: null,
+                });
+                currentUserData = effectiveMembers.get(userId);
+            }
+
+            let role, source, sourceType, sourceId;
+
+            // Determine role and source from this specific membership
+            if (m.organizationId) { role = m.role; source = 'organization'; sourceId = m.organizationId; }
+            else if (m.companyId) { role = m.role; source = 'company'; sourceId = m.companyId; }
+            else if (m.teamId) { role = m.role; source = 'team'; sourceId = m.teamId; }
+            else if (m.projectId) { role = m.role; source = 'project'; sourceId = m.projectId; }
+
+            // Determine if this membership is direct, an ancestor, or a descendant
+            const isDirect = sourceId === resourceId;
+            const isAncestor = ancestors[`${source}Id`] === sourceId;
+
+            let newEffectiveRole = null;
+            let newRoleSource = '';
+            
+            // Rule 1: Direct membership is king
+            if (isDirect) {
+                newEffectiveRole = role;
+                newRoleSource = `Direct membership on this ${source}`;
+            }
+            // Rule 2: Inherited Admin
+            else if (isAncestor && role === 'ADMIN') {
+                newEffectiveRole = 'ADMIN';
+                newRoleSource = `Admin of parent ${source}`;
+            }
+            // Rule 3: Viewer (default)
+            else {
+                 newRoleSource = `Member of related ${source}`;
+            }
+
+            // --- Precedence Logic ---
+            // Direct roles always win.
+            if (isDirect) {
+                currentUserData.effectiveRole = newEffectiveRole;
+                currentUserData.roleSource = newRoleSource;
+                currentUserData.roleSourceType = source;
+                currentUserData.roleSourceId = sourceId;
+            }
+            // Inherited Admin wins over Viewer.
+            else if (newEffectiveRole === 'ADMIN' && currentUserData.effectiveRole !== 'ADMIN') {
+                currentUserData.effectiveRole = 'ADMIN';
+                currentUserData.roleSource = newRoleSource;
+                currentUserData.roleSourceType = source;
+                currentUserData.roleSourceId = sourceId;
+            }
+             // Set viewer source if nothing higher has been set
+            else if (currentUserData.effectiveRole === 'VIEWER' && currentUserData.roleSource === 'viewer') {
+                currentUserData.roleSource = newRoleSource;
+                currentUserData.roleSourceType = source;
+                currentUserData.roleSourceId = sourceId;
+            }
+        }
+
+        res.json(Array.from(effectiveMembers.values()));
+
     } catch (error) {
         console.error(`Error fetching members for ${Object.keys(req.query)[0]}:`, error);
         res.status(500).json({ error: 'An error occurred while fetching members.' });
@@ -112,7 +187,7 @@ router.post('/', async (req, res) => {
             });
             
             // Note: In a real app, you'd use a frontend URL from an environment variable.
-            invitationLink = `http://localhost:5173/register?invite_token=${invitationToken}`;
+            invitationLink = `http://localhost:3000/register?invite_token=${invitationToken}`;
         }
 
         const existingMembership = await prisma.membership.findFirst({

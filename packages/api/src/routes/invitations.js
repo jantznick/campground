@@ -25,9 +25,13 @@ router.post('/resend', async (req, res) => {
 
         // Ensure the user exists and is actually pending by checking for a null password
         console.log(user);
-		if (!user || user.password !== '') {
+		if (!user) {
             return res.status(404).json({ error: 'A pending invitation for this user was not found.' });
         }
+
+		if (user.password !== null) {
+			return res.status(400).json({ error: 'This user has already been registered.' });
+		}
         
         // The user must have permission to manage the resource the user was invited to.
         // This requires finding the user's membership.
@@ -52,6 +56,7 @@ router.post('/resend', async (req, res) => {
         const newInvitationToken = crypto.randomBytes(32).toString('hex');
         const newExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 
+		await prisma.invitation.deleteMany({ where: { userId: user.id } });
 		const invitation = await prisma.invitation.create({
 			data: {
 				userId: user.id,

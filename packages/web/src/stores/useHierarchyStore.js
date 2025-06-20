@@ -33,13 +33,13 @@ const mutator = (nodes, findFn, updateFn) => {
 
 const useHierarchyStore = create((set, get) => {
     const initialState = {
-        hierarchy: [],
+    hierarchy: [],
         activeOrganization: null,
-        selectedItem: null,
-        activeCompany: null,
-        accountType: 'STANDARD',
-        isLoading: false,
-        error: null,
+    selectedItem: null,
+    activeCompany: null,
+    accountType: 'STANDARD',
+    isLoading: false,
+    error: null,
     };
 
     return {
