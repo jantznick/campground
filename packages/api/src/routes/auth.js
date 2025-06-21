@@ -4,6 +4,9 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { protect } from '../middleware/authMiddleware.js';
 import { hasPermission } from '../utils/permissions.js';
+import passport from 'passport';
+import { decrypt } from '../utils/crypto.js';
+import { dynamicOidcStrategy } from '../utils/passport.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -60,7 +63,14 @@ router.post('/register', async (req, res) => {
             }
           });
           // Note: user is created, proceed to create session and log them in
-          return createSessionAndLogin(res, user);
+          req.login(user, (err) => {
+            if (err) {
+              console.error('Login after registration error:', err);
+              return res.status(500).json({ error: 'An error occurred during login after registration.' });
+            }
+            const { password: _, ...userWithoutPassword } = user;
+            return res.status(201).json(userWithoutPassword);
+          });
         }
 
         // Then check for organization-level match
@@ -85,7 +95,14 @@ router.post('/register', async (req, res) => {
               }
             }
           });
-          return createSessionAndLogin(res, user);
+          req.login(user, (err) => {
+            if (err) {
+              console.error('Login after registration error:', err);
+              return res.status(500).json({ error: 'An error occurred during login after registration.' });
+            }
+            const { password: _, ...userWithoutPassword } = user;
+            return res.status(201).json(userWithoutPassword);
+          });
         }
       }
       
@@ -128,7 +145,14 @@ router.post('/register', async (req, res) => {
       });
       
       // Auto-login: create a session for the new user
-      return createSessionAndLogin(res, user);
+      req.login(user, (err) => {
+        if (err) {
+          console.error('Login after registration error:', err);
+          return res.status(500).json({ error: 'An error occurred during login after registration.' });
+        }
+        const { password: _, ...userWithoutPassword } = user;
+        return res.status(201).json(userWithoutPassword);
+      });
     }
 
   } catch (error) {
@@ -137,32 +161,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Helper function to create a session and send the response
-async function createSessionAndLogin(res, user) {
-  const sessionToken = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-  await prisma.session.create({
-    data: {
-      userId: user.id,
-      sessionToken,
-      expires,
-    },
-  });
-
-  res.cookie('sessionToken', sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    expires: expires,
-    sameSite: 'lax'
-  });
-
-  // We don't want to send the password hash back
-  const { password: _, ...userWithoutPassword } = user;
-  res.status(201).json(userWithoutPassword);
-}
-
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -184,7 +183,8 @@ router.post('/login', async (req, res) => {
                 }
             }
         });
-        if (!user) {
+
+        if (!user || !user.password) {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
@@ -193,38 +193,29 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
-        // Create a session
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        const session = await prisma.session.create({
-            data: {
-                userId: user.id,
-                sessionToken,
-                expires,
-            },
+        // Use req.login provided by Passport
+        req.login(user, (err) => {
+            if (err) { return next(err); }
+            
+            // We don't want to send the password hash back
+            const { password: _, ...userWithoutPassword } = user;
+            return res.status(200).json(userWithoutPassword);
         });
-        
-        const { password: _, ...userWithoutPassword } = user;
-
-        res.cookie('sessionToken', session.sessionToken, {
-            httpOnly: true, // Not accessible via JavaScript
-            secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-            expires: expires,
-            sameSite: 'lax'
-        });
-
-        res.status(200).json(userWithoutPassword);
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'An error occurred during login.' });
+        return res.status(500).json({ error: 'An error occurred during login.' });
     }
 });
 
-router.post('/logout', (req, res) => {
-    res.clearCookie('sessionToken');
-    res.status(200).json({ message: 'Logged out successfully' });
+router.post('/logout', (req, res, next) => {
+  req.logout((err) => {
+    if (err) {
+      return next(err);
+    }
+    res.clearCookie('connect.sid'); // The default session cookie name from express-session
+    res.status(200).json({ message: 'Logged out successfully.' });
+  });
 });
 
 // GET /api/v1/auth/check-domain - Check if a domain is registered for auto-join
@@ -364,10 +355,59 @@ router.post('/accept-invitation', async (req, res) => {
     }
 });
 
-// A protected route to get the current user's details
+// OIDC Authentication Routes
+// This route starts the OIDC login process (SP-initiated)
+router.get('/auth/oidc', dynamicOidcStrategy, (req, res, next) => {
+  passport.authenticate('oidc')(req, res, next);
+});
+
+// This is the callback URL for the OIDC provider.
+// It handles both SP-initiated (GET) and IdP-initiated (POST) flows.
+router.all('/auth/oidc/callback', dynamicOidcStrategy, (req, res, next) => {
+  passport.authenticate('oidc', {
+    successRedirect: process.env.WEB_URL, // Redirect to frontend app
+    failureRedirect: `${process.env.WEB_URL}/login?error=oidc_failed`,
+  })(req, res, next);
+});
+
+// A route to get the current authenticated user's info
 router.get('/me', protect, (req, res) => {
     // If the middleware succeeds, req.user will be populated
     res.status(200).json(req.user);
+});
+
+// GET /api/v1/auth/oidc-status?email=...
+// Checks if a domain has an active OIDC configuration.
+// This is a public endpoint used by the login page.
+router.get('/oidc-status', async (req, res) => {
+  const { email } = req.query;
+  if (!email || !email.includes('@')) {
+    return res.json({ ssoEnabled: false });
+  }
+  const domain = email.split('@')[1].toLowerCase();
+
+  try {
+    const autoJoinDomain = await prisma.autoJoinDomain.findFirst({
+      where: { domain },
+      include: { organization: { include: { oidcConfiguration: true } } }
+    });
+
+    const org = autoJoinDomain?.organization;
+    const oidcConfig = org?.oidcConfiguration;
+
+    if (oidcConfig && oidcConfig.isEnabled) {
+      return res.json({
+        ssoEnabled: true,
+        buttonText: oidcConfig.buttonText,
+        organizationId: org.id
+      });
+    }
+
+    res.json({ ssoEnabled: false });
+  } catch (error) {
+    console.error('Error checking OIDC status:', error);
+    res.status(500).json({ error: 'Server error checking OIDC status.' });
+  }
 });
 
 export default router; 

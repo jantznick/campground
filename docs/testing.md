@@ -110,4 +110,76 @@ This document outlines the test data created by the database seed script and pro
   - When viewing the TechCorp hierarchy, they should only see the path `TechCorp` -> `Analytics Inc.` and its children. They should not see "Cloud Services (Company A)".
   - When viewing the SoloDev hierarchy, they should only see the path `SoloDev` -> `Main App` -> `Mobile` and its children. They should not see the "Web" team.
   - As a `READER` in Company B, they should be able to view settings and users, but not edit them.
-  - As an `EDITOR` in Team C1, they should be able to manage members of Team C1 and edit the "iOS App" project, but not edit the settings for Team C1 itself. 
+  - As an `EDITOR` in Team C1, they should be able to manage members of Team C1 and edit the "iOS App" project, but not edit the settings for Team C1 itself.
+
+---
+
+### 4. OIDC Single Sign-On (SSO)
+
+This scenario requires a real external OIDC provider. A free Okta or Auth0 developer account is recommended.
+
+#### 4.1. Configuration
+
+1.  **Configure an OIDC Application** in your chosen provider (e.g., Okta).
+    *   **Application Type**: Web Application.
+    *   **Sign-in redirect URIs / Callback URL**: Copy the "Callback / Redirect URL" from the Stagehand settings page (e.g., `http://localhost:3001/api/v1/auth/oidc/callback`) and paste it here.
+    *   **Assignments**: Assign at least two test users in your provider to this application (e.g., `sso_new_user@yourdomain.com` and `sso_existing_user@yourdomain.com`).
+2.  **Log in to Stagehand** as `globaladmin@test.com` (`ADMIN` of **TechCorp**).
+3.  **Navigate to Settings** -> Organization Settings for "TechCorp".
+4.  **Configure OIDC Settings**:
+    *   Go to the "Single Sign-On (OIDC)" section.
+    *   Fill in all the required details from your OIDC application: `Issuer URL`, `Client ID`, `Client Secret`, and the provider-specific `Authorization`, `Token`, and `User Info` URLs.
+    *   Set the **"Default Role for New Users"** to `EDITOR`.
+    *   Save the configuration.
+
+#### 4.2. Test Case: SP-Initiated Login with a New User (JIT Provisioning)
+
+This tests the flow when a user starts from our login page.
+
+1.  **Log out** from the `globaladmin@test.com` account.
+2.  Navigate to the **Login Page**.
+3.  Enter the email of a **new** OIDC test user (e.g., `sso_new_user@yourdomain.com`). This user should exist in the IdP but NOT in Stagehand.
+4.  **Expected Behavior**: After a brief delay, the password field should disappear, and a "Login with SSO" button should appear.
+5.  Click the login button. You should be redirected to your OIDC provider's login page.
+6.  Log in with the new test user's credentials on the provider's site.
+7.  **Expected Behavior on Redirect**:
+    *   You should be redirected back to the Stagehand dashboard.
+    *   You are now logged in as `sso_new_user@yourdomain.com`.
+    *   A new user should have been created in the database (Just-in-Time Provisioning).
+    *   The user should be a member of the **TechCorp** organization with the **`EDITOR`** role, as defined in the `defaultRole` setting.
+
+#### 4.3. Test Case: SP-Initiated Login with an Existing User
+
+This tests linking an SSO login to a pre-existing Stagehand account.
+
+1.  First, ensure the user `projecta21_reader@test.com` exists in your IdP and is assigned to the application.
+2.  **Log out** of all accounts.
+3.  Navigate to the **Login Page**.
+4.  Enter the email `projecta21_reader@test.com`.
+5.  Click the "Login with SSO" button and complete authentication with the provider.
+6.  **Expected Behavior on Redirect**:
+    *   You should be logged in as `projecta21_reader@test.com`.
+    *   No new user should be created.
+    *   The user's permissions should remain unchanged (they are still a `READER` of the "BlobStore" project). This verifies that SSO login correctly links to an existing account without altering its permissions.
+
+#### 4.4. Test Case: IdP-Initiated Login
+
+This tests the flow when a user starts from their Identity Provider's dashboard.
+
+1.  In a separate browser or incognito window, log into your Identity Provider's dashboard (e.g., Okta) as a test user (e.g., `sso_new_user@yourdomain.com` or another new user).
+2.  From the IdP's application dashboard, click on the Stagehand application icon.
+3.  **Expected Behavior**:
+    *   You should be redirected directly to the Stagehand application and logged in automatically.
+    *   If the user did not exist in Stagehand previously, a new user should be created with the `EDITOR` role within the **TechCorp** organization (the org configured for that IdP `issuer`).
+    *   If the user already existed, they should simply be logged in.
+    *   This flow should work without ever visiting the Stagehand login page.
+
+#### 4.5. Test Case: Disabling OIDC
+
+1.  Log in as `globaladmin@test.com`.
+2.  Navigate to the OIDC settings for TechCorp.
+3.  Click the **"Delete Configuration"** button.
+4.  **Expected Behavior**: The configuration is deleted.
+5.  **Log out** and navigate to the login page.
+6.  Enter the email of an SSO user (e.g., `sso_new_user@yourdomain.com`).
+7.  **Expected Behavior**: The "Login with SSO" button should NOT appear. The login form should behave as a standard password-only form. The user should not be able to log in with their old SSO credentials. 

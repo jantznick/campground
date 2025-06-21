@@ -40,4 +40,8 @@ This document lists the high-level tasks for building the application.
 - [ ] Create UI for viewing and managing Companies.
 - [ ] Create UI for viewing and managing Teams.
 - [ ] Create UI for viewing and managing Projects.
-- [ ] Implement the "hide Organization" toggle in settings. 
+- [ ] Implement the "hide Organization" toggle in settings.
+
+## Future Considerations
+
+- **Set/Reset Password for SSO Users:** Implement a flow for users who were originally provisioned via OIDC SSO to be able to set a password for their account. This would allow them to log in with either SSO or a password. This is important for scenarios where an IdP might be unavailable or a user leaves an organization but still needs access to their account. Allow admins a toggle to allow or disallow passworded login.

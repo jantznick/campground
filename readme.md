@@ -28,6 +28,7 @@ Campground provides a robust foundation with all the essential features needed f
     *   **Secure Authentication:** Features a complete, session-based authentication system.
     *   **Invite System:** Effortlessly onboard new users with invite links. Invitations can pre-configure a user's role and access level before they even sign up.
     *   **Automatic Domain Join:** Automatically assign new users to the correct Organization or Company based on their email domain, with built-in DNS verification for security.
+    *   **OIDC & SSO:** Allow organizations to integrate with their own identity providers (like Okta, Azure AD) for seamless and secure single sign-on.
 
 *   **Ready-to-Deploy:**
     *   The entire application is containerized with Docker.
@@ -35,8 +36,6 @@ Campground provides a robust foundation with all the essential features needed f
 
 ## Coming Soon Features
 
- **OIDC & SSO:** Designed to easily integrate with identity providers like Okta, Auth0, or any other OIDC-compliant service for seamless enterprise login
- 
  **Email Capabilities:** Email notifications and other transaction email needs
  
  **User Notification System:** A general user notification system

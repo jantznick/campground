@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import AuthForm from '../components/AuthForm';
 import logo from '../logo.png';
+import { useDebounce } from '../hooks/useDebounce';
 
 const RegisterPage = () => {
     const navigate = useNavigate();
@@ -15,6 +16,7 @@ const RegisterPage = () => {
     const [loading, setLoading] = useState(false);
     const [isInviteFlow, setIsInviteFlow] = useState(false);
     const [domainCheckResult, setDomainCheckResult] = useState(null);
+    const debouncedEmail = useDebounce(email, 500);
   
     const inviteToken = searchParams.get('invite_token');
 
@@ -38,26 +40,16 @@ const RegisterPage = () => {
     }, []);
 
     useEffect(() => {
-		console.log('email', email);
         if (isInviteFlow) return;
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (emailRegex.test(debouncedEmail)) {
+            const domain = debouncedEmail.split('@')[1];
+            checkDomain(domain);
+        } else {
             setDomainCheckResult(null);
-            return;
         }
-
-        const handler = setTimeout(() => {
-            const domain = email.split('@')[1];
-            if (domain) {
-                checkDomain(domain);
-            }
-        }, 500); // 500ms debounce delay
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [email, isInviteFlow, checkDomain]);
+    }, [debouncedEmail, isInviteFlow, checkDomain]);
 
     useEffect(() => {
         if (inviteToken) {

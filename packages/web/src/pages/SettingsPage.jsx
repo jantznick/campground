@@ -10,6 +10,7 @@ import useAuthStore from '../stores/useAuthStore';
 import AccessManagement from '../components/settings/AccessManagement';
 import HierarchySettings from '../components/settings/HierarchySettings';
 import DomainManagement from '../components/settings/DomainManagement';
+import OIDCSettings from '../components/settings/OIDCSettings';
 import { ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
 import { resetAllStores } from '../stores/reset.js';
 
@@ -256,11 +257,18 @@ const SettingsPage = () => {
                 </form>
             </div>
 
-            <AccessManagement resourceType={itemType} resourceId={id} />
+            <div className="mt-8">
+                <h2 className="text-xl font-bold mb-4">Settings</h2>
+                <div className="space-y-8 bg-white/5 p-6 rounded-xl border border-white/10">
+                    <AccessManagement resourceType={itemType} resourceId={id} />
 
-            {['organization', 'company'].includes(itemType) && <DomainManagement resourceType={itemType} resourceId={id} />}
+                    {['organization', 'company'].includes(itemType) && <DomainManagement resourceType={itemType} resourceId={id} />}
 
-            {itemType === 'organization' && <HierarchySettings />}
+                    {itemType === 'organization' && <HierarchySettings />}
+
+                    {isAdmin && itemType === 'organization' && <OIDCSettings />}
+                </div>
+            </div>
 
             {itemType === 'organization' && isAdmin && organization && (
                 <div className="mt-8">

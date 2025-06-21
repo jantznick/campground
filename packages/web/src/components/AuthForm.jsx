@@ -67,22 +67,24 @@ const AuthForm = ({
                                 {domainCheckMessage}
                             </div>
                         )}
-                        <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                <LockIcon className="h-5 w-5 text-gray-500" />
-                            </span>
-        <input
-                                id="password"
-                                name="password"
-          type="password"
-                                autoComplete={formType === 'login' ? 'current-password' : 'new-password'}
-                                required
-                                className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm"
-                                placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
+                        {password !== undefined && setPassword !== undefined && (
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <LockIcon className="h-5 w-5 text-gray-500" />
+                                </span>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    autoComplete={formType === 'login' ? 'current-password' : 'new-password'}
+                                    required
+                                    className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm"
+                                    placeholder="Password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {error && <div className="text-red-400 text-sm text-center pt-2">{error}</div>}

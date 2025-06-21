@@ -27,18 +27,15 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  sessions Session[]
   memberships Membership[]
   invitation  Invitation?
 }
 
 model Session {
   id        String   @id @default(cuid())
-  sessionToken String   @unique
-  userId    String
-  expires   DateTime
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
 }
 
 model Organization {
@@ -54,6 +51,7 @@ model Organization {
   companies   Company[]
   memberships Membership[]
   autoJoinDomains  AutoJoinDomain[]
+  oidcConfiguration OIDCConfiguration?
 }
 
 model Company {
@@ -157,4 +155,21 @@ model AutoJoinDomain {
   // Ensure a domain is unique per entity.
   @@unique([domain, organizationId])
   @@unique([domain, companyId])
+}
+
+model OIDCConfiguration {
+  id               String   @id @default(cuid())
+  organizationId   String   @unique
+  issuer           String   @unique
+  clientId         String
+  clientSecret     String
+  authorizationUrl String
+  tokenUrl         String
+  userInfoUrl      String
+  defaultRole      Role     @default(READER)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 } 
