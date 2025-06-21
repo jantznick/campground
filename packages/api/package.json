@@ -1,31 +1,32 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "private": true,
+  "description": "",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "prisma:generate": "prisma generate",
-    "db:seed": "prisma db seed"
+    "dev": "nodemon src/index.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.17.0",
-    "@quixo3/prisma-session-store": "^3.1.13",
+    "@prisma/client": "^5.12.1",
     "bcryptjs": "^2.4.3",
-    "cookie-parser": "^1.4.6",
+    "connect-pg-simple": "^9.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "express-session": "^1.18.1",
+    "express-session": "^1.18.0",
+    "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
     "passport-openidconnect": "^0.1.2"
   },
   "devDependencies": {
-    "prisma": "^5.17.0"
-  },
-  "prisma": {
-    "schema": "prisma/schema.prisma",
-    "seed": "node prisma/seed.js"
+    "nodemon": "^3.1.0",
+    "prisma": "^5.12.1"
   }
 }

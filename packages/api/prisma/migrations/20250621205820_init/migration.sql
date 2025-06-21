@@ -118,16 +118,30 @@ CREATE TABLE "AutoJoinDomain" (
 -- CreateTable
 CREATE TABLE "OIDCConfiguration" (
     "id" TEXT NOT NULL,
-    "issuerURL" TEXT NOT NULL,
-    "clientID" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "issuer" TEXT NOT NULL,
+    "clientId" TEXT NOT NULL,
     "clientSecret" TEXT NOT NULL,
-    "buttonText" TEXT NOT NULL DEFAULT 'Login with SSO',
-    "isEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "authorizationUrl" TEXT NOT NULL,
+    "tokenUrl" TEXT NOT NULL,
+    "userInfoUrl" TEXT NOT NULL,
+    "defaultRole" "Role" NOT NULL DEFAULT 'READER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "organizationId" TEXT NOT NULL,
 
     CONSTRAINT "OIDCConfiguration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PasswordResetToken" (
+    "id" TEXT NOT NULL,
+    "selector" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -169,6 +183,15 @@ CREATE UNIQUE INDEX "AutoJoinDomain_domain_companyId_key" ON "AutoJoinDomain"("d
 -- CreateIndex
 CREATE UNIQUE INDEX "OIDCConfiguration_organizationId_key" ON "OIDCConfiguration"("organizationId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "OIDCConfiguration_issuer_key" ON "OIDCConfiguration"("issuer");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PasswordResetToken_selector_key" ON "PasswordResetToken"("selector");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PasswordResetToken_userId_key" ON "PasswordResetToken"("userId");
+
 -- AddForeignKey
 ALTER TABLE "Company" ADD CONSTRAINT "Company_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -204,3 +227,6 @@ ALTER TABLE "AutoJoinDomain" ADD CONSTRAINT "AutoJoinDomain_companyId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "OIDCConfiguration" ADD CONSTRAINT "OIDCConfiguration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
