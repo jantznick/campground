@@ -212,7 +212,7 @@ router.post('/:id/domains/:domainMappingId/verify', async (req, res) => {
             return res.status(404).json({ error: 'Domain mapping not found.' });
         }
 
-        const expectedRecord = `stagehand-verification=${domainMapping.verificationCode}`;
+        const expectedRecord = `campground-verification=${domainMapping.verificationCode}`;
         let txtRecords = [];
         try {
             txtRecords = await dns.resolveTxt(domainMapping.domain);

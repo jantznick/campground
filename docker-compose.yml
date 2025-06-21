@@ -1,11 +1,11 @@
 services:
   database:
     image: postgres:16-alpine
-    container_name: stagehand-db
+    container_name: campground-db
     ports:
       - "5432:5432"
     volumes:
-      - stagehand-db-data:/var/lib/postgresql/data
+      - campground-db-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -22,7 +22,7 @@ services:
       dockerfile: packages/api/Dockerfile.dev
     working_dir: /app
     command: sh -c "npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma && npm run dev --workspace=api"
-    container_name: stagehand-api
+    container_name: campground-api
     ports:
       - "3001:3001"
     volumes:
@@ -41,7 +41,7 @@ services:
       dockerfile: packages/web/Dockerfile.dev
     working_dir: /app
     command: npm run dev --workspace=web
-    container_name: stagehand-web
+    container_name: campground-web
     ports:
       - "3000:3000"
     volumes:
@@ -51,4 +51,4 @@ services:
       - api
 
 volumes:
-  stagehand-db-data: 
+  campground-db-data: 

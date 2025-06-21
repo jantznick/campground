@@ -21,7 +21,7 @@ function DashboardPage() {
                  <div className="w-16 h-16 bg-[var(--orange-wheel)]/10 rounded-full flex items-center justify-center mb-4">
                      <Play size={32} className="text-[var(--orange-wheel)]"/>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-1">Welcome to Stagehand</h2>
+                <h2 className="text-2xl font-bold text-white mb-1">Welcome to Campground</h2>
                 <p className="text-[var(--vanilla)]/60">Select an item from the sidebar to get started.</p>
             </div>
 			:
