@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import AuthForm from '../components/AuthForm';
@@ -7,12 +7,14 @@ import { useDebounce } from '../hooks/useDebounce';
 const LoginPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login } = useAuthStore();
+    const { login, forgotPassword } = useAuthStore();
     
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isResetMode, setIsResetMode] = useState(false);
+    const [resetMessage, setResetMessage] = useState('');
 
     const [oidcConfig, setOidcConfig] = useState(null);
     const [domainCheckMessage, setDomainCheckMessage] = useState(null);
@@ -27,6 +29,12 @@ const LoginPage = () => {
     }, [inviteToken, navigate]);
 
     useEffect(() => {
+        // Don't check for OIDC/domain status if we're in reset mode.
+        if (isResetMode) {
+            setOidcConfig(null);
+            setDomainCheckMessage(null);
+            return;
+        }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         async function checkOidcStatus() {
             if (emailRegex.test(debouncedEmail)) {
@@ -51,7 +59,7 @@ const LoginPage = () => {
             }
         }
         checkOidcStatus();
-    }, [debouncedEmail]);
+    }, [debouncedEmail, isResetMode]);
 
     const handleLogin = async () => {
         if (oidcConfig) {
@@ -71,27 +79,63 @@ const LoginPage = () => {
         }
     };
 
+    const handleForgotPassword = async () => {
+        setLoading(true);
+        setError(null);
+        setResetMessage('');
+        try {
+            const result = await forgotPassword(email);
+            setResetMessage(result.message);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleResetMode = (e) => {
+        if (e) e.preventDefault();
+        setIsResetMode(!isResetMode);
+        setError(null);
+        setResetMessage('');
+        setPassword('');
+    };
+    
+    const footerContent = isResetMode ? (
+        <p>
+            Remember your password?{' '}
+            <a href="#" onClick={toggleResetMode} className="font-medium text-[var(--orange-wheel)] hover:text-opacity-80">
+                Back to Sign In
+            </a>
+        </p>
+    ) : (
+        <div className="flex justify-between items-center w-full">
+            <a href="#" onClick={toggleResetMode} className="font-medium text-[var(--orange-wheel)] hover:text-opacity-80 text-sm">
+                Forgot password?
+            </a>
+            <p className="text-sm">
+                Don't have an account?{' '}
+                <Link to="/register" className="font-medium text-[var(--orange-wheel)] hover:text-opacity-80">
+                    Sign up
+                </Link>
+            </p>
+        </div>
+    );
+
     return (
         <AuthForm
-            formType="login"
-            title="Sign in to your account"
-            buttonText={oidcConfig ? oidcConfig.buttonText || 'Continue with SSO' : "Login"}
-            onSubmit={handleLogin}
+            formType={isResetMode ? 'forgot-password' : 'login'}
+            title={isResetMode ? 'Reset your password' : 'Sign in to your account'}
+            buttonText={isResetMode ? 'Send Reset Link' : (oidcConfig ? oidcConfig.buttonText || 'Continue with SSO' : "Login")}
+            onSubmit={isResetMode ? handleForgotPassword : handleLogin}
             error={error}
             loading={loading}
             email={email}
             setEmail={setEmail}
-            password={oidcConfig ? undefined : password}
-            setPassword={oidcConfig ? undefined : setPassword}
-            domainCheckMessage={domainCheckMessage}
-            footerContent={
-                <p>
-                    Don't have an account?{' '}
-                    <Link to="/register" className="font-medium text-[var(--orange-wheel)] hover:text-opacity-80">
-                        Sign up
-                    </Link>
-                </p>
-            }
+            password={isResetMode || oidcConfig ? undefined : password}
+            setPassword={isResetMode || oidcConfig ? undefined : setPassword}
+            domainCheckMessage={isResetMode ? (resetMessage || 'Enter your email to receive a password reset link.') : domainCheckMessage}
+            footerContent={footerContent}
         />
     );
 };

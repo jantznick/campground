@@ -80,6 +80,30 @@ export const useAuthStore = create(
             console.log("Error checking auth", error);
         }
       },
+      forgotPassword: async (email) => {
+        const response = await fetch('/api/v1/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to send password reset link.');
+        }
+        return response.json();
+      },
+      resetPassword: async ({ token, password }) => {
+        const response = await fetch('/api/v1/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password }),
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to reset password.');
+        }
+        return response.json();
+      },
     }),
     {
       name: 'user-storage', 

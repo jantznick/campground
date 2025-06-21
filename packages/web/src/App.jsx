@@ -4,6 +4,7 @@ import useAuthStore from './stores/useAuthStore';
 import useHierarchyStore from './stores/useHierarchyStore';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Sidebar from './components/sidebar/Sidebar';
@@ -45,6 +46,7 @@ const App = () => {
 					<Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
                         <Route 
                             path="/dashboard" 
                             element={<PrivateRoute><DashboardPage /></PrivateRoute>} 
