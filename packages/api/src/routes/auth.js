@@ -29,71 +29,98 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // TODO: Implement invite token logic
     if (inviteToken) {
-        // Find the invitation, add user to the corresponding tenant with the specified role
-        // For now, we'll just return an error.
-        return res.status(501).json({ error: 'Invite token functionality not yet implemented.' });
+      // Find the invitation, add user to the corresponding tenant with the specified role
+      // For now, we'll just return an error.
+      return res.status(501).json({ error: 'Invite token functionality not yet implemented.' });
     } else {
-        const orgData = {
-            name: `${email}'s Organization`,
-            accountType: accountType || 'STANDARD', // Default to STANDARD
-            companies: {}
-        };
+      // Auto-join logic
+      const domain = email.split('@')[1];
+      if (domain) {
+        // Check for company-level match first
+        const companyDomain = await prisma.autoJoinDomain.findFirst({
+          where: { domain: domain.toLowerCase(), companyId: { not: null } }
+        });
 
-        if (accountType === 'STANDARD') {
-            orgData.companies = {
+        if (companyDomain) {
+          const user = await prisma.user.create({
+            data: {
+              email,
+              password: hashedPassword,
+              memberships: {
                 create: {
-                    name: 'Default Company'
+                  role: companyDomain.role,
+                  companyId: companyDomain.companyId
                 }
-            };
+              }
+            }
+          });
+          // Note: user is created, proceed to create session and log them in
+          return createSessionAndLogin(res, user);
         }
 
-        // If no invite token, create a new Organization and maybe a default Company for the user.
-        const user = await prisma.user.create({
+        // Then check for organization-level match
+        const orgDomain = await prisma.autoJoinDomain.findFirst({
+          where: { domain: domain.toLowerCase(), organizationId: { not: null } }
+        });
+
+        if (orgDomain) {
+          const user = await prisma.user.create({
             data: {
-                email,
-                password: hashedPassword,
-                memberships: {
-                    create: {
-                        role: 'ADMIN',
-                        organization: {
-                            create: orgData
-                        }
-                    }
+              email,
+              password: hashedPassword,
+              memberships: {
+                create: {
+                  role: orgDomain.role,
+                  organizationId: orgDomain.organizationId
                 }
-            },
-            include: {
-                memberships: {
-                    include: {
-                        organization: true
-                    }
-                }
+              }
             }
-        });
-        
-        // Auto-login: create a session for the new user
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+          });
+          return createSessionAndLogin(res, user);
+        }
+      }
+      
+      // If no invite token and no auto-join domain, create a new Organization
+      const orgData = {
+        name: `${email.split('@')[0]}'s Organization`,
+        accountType: accountType || 'STANDARD', // Default to STANDARD
+        companies: {}
+      };
 
-        await prisma.session.create({
-            data: {
-                userId: user.id,
-                sessionToken,
-                expires,
-            },
-        });
+      if (accountType === 'STANDARD') {
+        orgData.companies = {
+          create: {
+            name: 'Default Company'
+          }
+        };
+      }
 
-        res.cookie('sessionToken', sessionToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            expires: expires,
-            sameSite: 'lax'
-        });
-
-        // We don't want to send the password hash back
-        const { password: _, ...userWithoutPassword } = user;
-        res.status(201).json(userWithoutPassword);
+      // If no invite token, create a new Organization and maybe a default Company for the user.
+      const user = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          memberships: {
+            create: {
+              role: 'ADMIN',
+              organization: {
+                create: orgData
+              }
+            }
+          }
+        },
+        include: {
+          memberships: {
+            include: {
+              organization: true
+            }
+          }
+        }
+      });
+      
+      // Auto-login: create a session for the new user
+      return createSessionAndLogin(res, user);
     }
 
   } catch (error) {
@@ -101,6 +128,31 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ error: 'An error occurred during registration.' });
   }
 });
+
+// Helper function to create a session and send the response
+async function createSessionAndLogin(res, user) {
+  const sessionToken = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  await prisma.session.create({
+    data: {
+      userId: user.id,
+      sessionToken,
+      expires,
+    },
+  });
+
+  res.cookie('sessionToken', sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    expires: expires,
+    sameSite: 'lax'
+  });
+
+  // We don't want to send the password hash back
+  const { password: _, ...userWithoutPassword } = user;
+  res.status(201).json(userWithoutPassword);
+}
 
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
@@ -165,6 +217,59 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
     res.clearCookie('sessionToken');
     res.status(200).json({ message: 'Logged out successfully' });
+});
+
+// GET /api/v1/auth/check-domain - Check if a domain is registered for auto-join
+router.get('/check-domain', async (req, res) => {
+    const { domain } = req.query;
+
+    if (!domain) {
+        return res.status(400).json({ error: 'Domain is required.' });
+    }
+
+    try {
+		console.log('domain', domain);
+        // Company-level match has precedence
+        const companyDomain = await prisma.autoJoinDomain.findFirst({
+            where: { 
+                domain: domain.toLowerCase(),
+                companyId: { not: null }
+            },
+            include: { company: { select: { name: true } } }
+        });
+
+        if (companyDomain) {
+            return res.status(200).json({
+                willJoin: true,
+                entityType: 'company',
+                entityName: companyDomain.company.name
+            });
+        }
+
+        // Organization-level match
+        const orgDomain = await prisma.autoJoinDomain.findFirst({
+            where: {
+                domain: domain.toLowerCase(),
+                organizationId: { not: null }
+            },
+            include: { organization: { select: { name: true } } }
+        });
+
+        if (orgDomain) {
+            return res.status(200).json({
+                willJoin: true,
+                entityType: 'organization',
+                entityName: orgDomain.organization.name
+            });
+        }
+
+        // No match found
+        res.status(200).json({ willJoin: false });
+
+    } catch (error) {
+        console.error('Check domain error:', error);
+        res.status(500).json({ error: 'Failed to check domain.' });
+    }
 });
 
 // GET /api/v1/auth/invitation/:token - Verify an invitation token

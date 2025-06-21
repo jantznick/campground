@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import AuthForm from '../components/AuthForm';
@@ -14,8 +14,50 @@ const RegisterPage = () => {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isInviteFlow, setIsInviteFlow] = useState(false);
+    const [domainCheckResult, setDomainCheckResult] = useState(null);
   
     const inviteToken = searchParams.get('invite_token');
+
+    // Debounced domain check logic
+    const checkDomain = useCallback(async (domain) => {
+        try {
+            const response = await fetch(`/api/v1/auth/check-domain?domain=${domain}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.willJoin) {
+                    setDomainCheckResult(`✓ This domain is registered. You will automatically join the ${data.entityName} ${data.entityType}.`);
+                } else {
+                    setDomainCheckResult(null);
+                }
+            }
+        } catch (err) {
+            // Do not show network errors to the user, just fail silently.
+            console.error(err);
+            setDomainCheckResult(null);
+        }
+    }, []);
+
+    useEffect(() => {
+		console.log('email', email);
+        if (isInviteFlow) return;
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setDomainCheckResult(null);
+            return;
+        }
+
+        const handler = setTimeout(() => {
+            const domain = email.split('@')[1];
+            if (domain) {
+                checkDomain(domain);
+            }
+        }, 500); // 500ms debounce delay
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [email, isInviteFlow, checkDomain]);
 
     useEffect(() => {
         if (inviteToken) {
@@ -91,6 +133,7 @@ const RegisterPage = () => {
             password={password}
             setPassword={setPassword}
             isEmailDisabled={isInviteFlow}
+            domainCheckMessage={domainCheckResult}
             footerContent={
                 !isInviteFlow && (
                     <p>

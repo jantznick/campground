@@ -48,6 +48,7 @@ model Organization {
 
   companies   Company[]
   memberships Membership[]
+  autoJoinDomains  AutoJoinDomain[]
 }
 
 model Company {
@@ -62,6 +63,7 @@ model Company {
 
   teams      Team[]
   memberships Membership[]
+  autoJoinDomains AutoJoinDomain[]
 }
 
 model Team {
@@ -128,4 +130,24 @@ model Membership {
   @@unique([userId, companyId])
   @@unique([userId, teamId])
   @@unique([userId, projectId])
+}
+
+model AutoJoinDomain {
+  id        String @id @default(cuid())
+  domain    String
+  role      Role
+
+  // A domain can be linked to either an Organization or a Company, but not both.
+  // This constraint is enforced at the application level.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // Ensure a domain is unique per entity.
+  @@unique([domain, organizationId])
+  @@unique([domain, companyId])
 } 

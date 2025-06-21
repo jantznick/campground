@@ -132,4 +132,101 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// A blocklist of common public email domains to prevent them from being registered for auto-join.
+const PUBLIC_DOMAINS = new Set(['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'msn.com']);
+
+// --- Auto-Join Domain Management for Companies ---
+
+// GET /api/v1/companies/:id/domains - Get all auto-join domains for a company
+router.get('/:id/domains', async (req, res) => {
+    const { id } = req.params;
+
+    const canManage = await hasPermission(req.user, 'ADMIN', 'company', id);
+    if (!canManage) {
+        return res.status(403).json({ error: 'You are not authorized to manage domains for this company.' });
+    }
+
+    try {
+        const domains = await prisma.autoJoinDomain.findMany({
+            where: { companyId: id },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.status(200).json(domains);
+    } catch (error) {
+        console.error('Get domains error:', error);
+        res.status(500).json({ error: 'Failed to retrieve domains.' });
+    }
+});
+
+// POST /api/v1/companies/:id/domains - Add a new auto-join domain
+router.post('/:id/domains', async (req, res) => {
+    const { id } = req.params;
+    const { domain, role } = req.body;
+
+    if (!domain || !role) {
+        return res.status(400).json({ error: 'Domain and role are required.' });
+    }
+
+    if (PUBLIC_DOMAINS.has(domain.toLowerCase())) {
+        return res.status(400).json({ error: 'Public email domains cannot be used for auto-join.' });
+    }
+
+    const canManage = await hasPermission(req.user, 'ADMIN', 'company', id);
+    if (!canManage) {
+        return res.status(403).json({ error: 'You are not authorized to manage domains for this company.' });
+    }
+
+    try {
+        // Verify the company exists
+        const company = await prisma.company.findUnique({ where: { id } });
+        if (!company) {
+            return res.status(404).json({ error: 'Company not found.' });
+        }
+
+        const newDomain = await prisma.autoJoinDomain.create({
+            data: {
+                domain: domain.toLowerCase(),
+                role,
+                companyId: id
+            }
+        });
+        res.status(201).json(newDomain);
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(409).json({ error: 'This domain has already been added to this company.' });
+        }
+        console.error('Add domain error:', error);
+        res.status(500).json({ error: 'Failed to add domain.' });
+    }
+});
+
+// DELETE /api/v1/companies/:id/domains/:domainMappingId - Remove an auto-join domain
+router.delete('/:id/domains/:domainMappingId', async (req, res) => {
+    const { id: companyId, domainMappingId } = req.params;
+
+    const canManage = await hasPermission(req.user, 'ADMIN', 'company', companyId);
+    if (!canManage) {
+        return res.status(403).json({ error: 'You are not authorized to manage domains for this company.' });
+    }
+
+    try {
+        const domainMapping = await prisma.autoJoinDomain.findFirst({
+            where: { id: domainMappingId, companyId }
+        });
+
+        if (!domainMapping) {
+            return res.status(404).json({ error: 'Domain mapping not found or does not belong to this company.' });
+        }
+
+        await prisma.autoJoinDomain.delete({
+            where: { id: domainMappingId }
+        });
+
+        res.status(204).send();
+    } catch (error) {
+        console.error('Delete domain error:', error);
+        res.status(500).json({ error: 'Failed to delete domain.' });
+    }
+});
+
 export default router; 

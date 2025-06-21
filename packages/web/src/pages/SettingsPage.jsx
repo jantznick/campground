@@ -7,6 +7,7 @@ import useTeamStore from '../stores/useTeamStore';
 import useProjectStore from '../stores/useProjectStore';
 import AccessManagement from '../components/settings/AccessManagement';
 import HierarchySettings from '../components/settings/HierarchySettings';
+import DomainManagement from '../components/settings/DomainManagement';
 import { ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
 
 const findItemRecursive = (nodes, targetId, targetType) => {
@@ -234,6 +235,8 @@ const SettingsPage = () => {
             </div>
 
             <AccessManagement resourceType={itemType} resourceId={id} />
+
+            {['organization', 'company'].includes(itemType) && <DomainManagement resourceType={itemType} resourceId={id} />}
 
             {itemType === 'organization' && <HierarchySettings />}
 

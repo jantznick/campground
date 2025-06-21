@@ -29,6 +29,7 @@ const AuthForm = ({
     title,
     buttonText,
     footerContent,
+    domainCheckMessage,
 }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -61,6 +62,11 @@ const AuthForm = ({
                                 disabled={isEmailDisabled}
         />
       </div>
+                        {domainCheckMessage && (
+                            <div className="text-center text-sm text-cyan-300 bg-cyan-900/50 border border-cyan-400/50 px-3 py-2 rounded-lg">
+                                {domainCheckMessage}
+                            </div>
+                        )}
                         <div className="relative">
                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                                 <LockIcon className="h-5 w-5 text-gray-500" />
