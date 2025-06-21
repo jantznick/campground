@@ -117,11 +117,11 @@
                     </a>
                     
                     <!-- Mobile menu button -->
-                    <button class="md:hidden text-vanilla hover:text-xanthous">
+                    <!-- <button class="md:hidden text-vanilla hover:text-xanthous">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
-                    </button>
+                    </button> -->
                 </div>
             </div>
         </div>
@@ -289,15 +289,15 @@
             <div class="bg-gray-800 rounded-xl p-8 max-w-4xl mx-auto">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-xl font-display font-light text-white leading-relaxed tracking-wide">Quick Start</h3>
-                    <button class="text-gray-400 hover:text-white transition-colors">
+                    <button id="copy-button" class="flex items-center text-gray-400 hover:text-white transition-colors" title="Copy to clipboard">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                         </svg>
                     </button>
                 </div>
-                <div class="bg-gray-900 rounded-lg p-6 font-mono text-sm">
+                <div id="code-block" class="bg-gray-900 rounded-lg p-6 font-mono text-sm">
                     <div class="text-gray-400 mb-2 font-light"># Clone the repository</div>
-                    <div class="text-green-400 mb-4 font-light">git clone https://github.com/jantznick/campground.git</div>
+                    <div class="text-green-400 mb-4 font-light overflow-x-auto whitespace-pre-wrap break-words">git clone https://github.com/jantznick/campground.git</div>
                     
                     <div class="text-gray-400 mb-2 font-light"># Install dependencies</div>
                     <div class="text-green-400 mb-4 font-light">npm install</div>
@@ -330,7 +330,7 @@
                     <span class="ml-2 text-xl font-display font-light text-white">Campground</span>
                 </div>
                 <p class="text-lg font-light leading-relaxed tracking-wide mb-6">
-                    Building the future of multi-tenant applications, one camp at a time.
+                    Building the future of multi-tenant applications.
                 </p>
                 <div class="flex justify-center space-x-6">
                     <a href="https://github.com/jantznick/campground" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-white transition-colors">
@@ -348,5 +348,38 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const copyButton = document.getElementById('copy-button');
+            const codeBlock = document.getElementById('code-block');
+
+            if (copyButton && codeBlock) {
+                copyButton.addEventListener('click', () => {
+                    const lines = codeBlock.querySelectorAll('.text-green-400');
+                    const textToCopy = Array.from(lines).map(line => line.textContent.trim()).join('\n');
+                    
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        const originalContent = copyButton.innerHTML;
+                        copyButton.classList.add('text-green-400');
+                        copyButton.innerHTML = `
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span class="text-sm ml-2">Copied!</span>
+                        `;
+                        
+                        setTimeout(() => {
+                            copyButton.innerHTML = originalContent;
+                            copyButton.classList.remove('text-green-400');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        alert('Failed to copy commands.');
+                    });
+                });
+            }
+        });
+    </script>
 </body>
 </html> 
