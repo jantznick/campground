@@ -1,47 +1,42 @@
-# Feature: Auto-Join by Domain
+# Feature: Auto-Join by Domain with DNS Verification
 
 ## Overview
 
-This feature allows organizations and companies to specify email domains that will grant new users automatic membership upon registration. This streamlines the onboarding process for users from a known entity, bypassing the need for manual invitations.
+This feature allows organizations and companies to specify email domains that will grant new users automatic membership upon registration. To prevent domain squatting and ensure security, an administrator must prove ownership of a domain by adding a DNS `TXT` record.
 
-For example, an administrator for "Acme Corp" can add the domain `acme.com`. When a new user signs up with the email `employee@acme.com`, they will be automatically added to the Acme Corp organization with a pre-configured role.
+For example, an administrator for "Acme Corp" adds the domain `acme.com`. Our system provides a unique token. The admin adds this token as a `TXT` record to their domain's DNS settings. Once verified, any new user signing up with an `@acme.com` email will be automatically added to the Acme Corp organization.
 
 ## Implementation Plan
 
 ### Part 1: Backend (API & Database)
 
 1.  **Database Schema:**
-    *   A new model, `AutoJoinDomain`, will be created in `prisma/schema.prisma`.
-    *   It will store the `domain`, the `role` to grant, and a link to either an `organizationId` or a `companyId`.
-    *   Application logic will enforce that a domain is unique per entity and that only one of `organizationId` or `companyId` is set for a given record.
+    *   The `AutoJoinDomain` model will be updated with two new fields:
+        *   `status`: An enum (`PENDING` | `VERIFIED`), defaulting to `PENDING`.
+        *   `verificationCode`: A unique string token generated upon creation.
 
 2.  **Domain Management API:**
-    *   Endpoints will be added to the `organizations` and `companies` routers to manage these domains (GET, POST, DELETE).
-    *   These endpoints will be protected by the `hasPermission` utility, ensuring only Admins of the corresponding resource can manage its domains.
-    *   The backend will maintain a blocklist of common public domains (e.g., `gmail.com`, `outlook.com`) to prevent them from being added.
+    *   `POST /api/.../domains`: This endpoint will now generate a `verificationCode` and save the new domain with a `PENDING` status.
+    *   `POST /api/.../domains/:domainMappingId/verify`: A new endpoint will be created. It will use Node.js's built-in `dns` module to look up the `TXT` record for the domain. If the record contains the correct `verificationCode`, it will update the domain's `status` to `VERIFIED`.
+    *   The existing management endpoints will be secured with `hasPermission`.
 
 3.  **Public Domain Check API:**
-    *   A new unauthenticated endpoint, `GET /api/auth/check-domain?domain=<domain>`, will be created.
-    *   The registration page will use this to check if a domain is registered and inform the user which organization or company they will be joining.
+    *   The `GET /api/auth/check-domain` endpoint will be updated to **only** return a match if the domain's `status` is `VERIFIED`.
 
 4.  **Registration Logic:**
-    *   The `POST /api/auth/register` endpoint will be updated.
-    *   If a registering user has no invitation token, the system will check their email domain against the `AutoJoinDomain` table.
-    *   The precedence rule is: a direct company match overrides an organization match.
-    *   If a match is found, a `Membership` record is automatically created for the new user.
+    *   The `POST /api/auth/register` logic will be updated to only create an automatic membership if the corresponding `AutoJoinDomain` record has a `status` of `VERIFIED`.
 
 ### Part 2: Frontend (UI & State Management)
 
-1.  **New Settings Component (`DomainManagement.jsx`):**
-    *   A new component will be created and added to the `SettingsPage` for organization and company-level settings.
-    *   It will allow Admins to add domains and select a default role.
-    *   It will display a prominent warning if the `ADMIN` or `EDITOR` role is selected, highlighting the security implications.
-    *   It will list all configured domains with an option to delete them.
+1.  **Zustand Store (`useDomainStore.js`):**
+    *   The store will be updated to handle the `status` and `verificationCode` fields.
+    *   A new `verifyDomain(domainMappingId, ...)` action will be added to call the new verification endpoint.
 
-2.  **New Zustand Store (`useDomainStore.js`):**
-    *   A new store will be created to handle the state and API calls for fetching, adding, and deleting auto-join domains.
+2.  **Settings Component (`DomainManagement.jsx`):**
+    *   The UI will be enhanced to show the `status` of each domain (`Pending` or `Verified`).
+    *   For pending domains, it will display the required `verificationCode` and instructions for creating the DNS `TXT` record.
+    *   A manual "Verify" button will be present for each pending domain.
+    *   **Automatic Re-verification:** The component will also start a timer to automatically re-check the verification status of all pending domains periodically, providing a seamless UX for the user.
 
 3.  **Updated Registration Page (`RegisterPage.jsx`):**
-    *   A front-end regex check will be implemented to validate the email format before making an API call.
-    *   A debounced API call to `/api/auth/check-domain` will be triggered as the user types their email.
-    *   If the domain is recognized, a message will be displayed below the email field informing the user they will be joining a specific organization or company. 
+    *   No changes needed here. The existing logic will continue to work, but the API it calls is now more secure. 

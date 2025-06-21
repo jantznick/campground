@@ -37,9 +37,32 @@ const useDomainStore = create((set) => ({
                 domains: [...state.domains, newDomain],
                 loading: false
             }));
+            return newDomain;
         } catch (error) {
             set({ error: error.message, loading: false });
             throw error; // Re-throw to be caught in the component
+        }
+    },
+
+    verifyDomain: async (domainMappingId, resourceType, resourceId) => {
+        set({ loading: true, error: null });
+        try {
+            const response = await fetch(`/api/v1/${resourceType}s/${resourceId}/domains/${domainMappingId}/verify`, {
+                method: 'POST',
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to verify domain');
+            }
+            const updatedDomain = await response.json();
+            set((state) => ({
+                domains: state.domains.map((d) => d.id === domainMappingId ? updatedDomain : d),
+                loading: false
+            }));
+            return updatedDomain;
+        } catch (error) {
+            set({ error: error.message, loading: false });
+            throw error;
         }
     },
 

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
+import { promises as dns } from 'dns';
 import { protect } from '../middleware/authMiddleware.js';
 import { getVisibleResourceIds, hasPermission } from '../utils/permissions.js';
 
@@ -187,7 +189,9 @@ router.post('/:id/domains', async (req, res) => {
             data: {
                 domain: domain.toLowerCase(),
                 role,
-                companyId: id
+                companyId: id,
+                verificationCode: crypto.randomBytes(16).toString('hex'),
+                status: 'PENDING'
             }
         });
         res.status(201).json(newDomain);
@@ -197,6 +201,50 @@ router.post('/:id/domains', async (req, res) => {
         }
         console.error('Add domain error:', error);
         res.status(500).json({ error: 'Failed to add domain.' });
+    }
+});
+
+// POST /api/v1/companies/:id/domains/:domainMappingId/verify - Verify a domain via DNS
+router.post('/:id/domains/:domainMappingId/verify', async (req, res) => {
+    const { id: companyId, domainMappingId } = req.params;
+
+    const canManage = await hasPermission(req.user, 'ADMIN', 'company', companyId);
+    if (!canManage) {
+        return res.status(403).json({ error: 'You are not authorized to manage domains for this company.' });
+    }
+
+    try {
+        const domainMapping = await prisma.autoJoinDomain.findUnique({
+            where: { id: domainMappingId }
+        });
+
+        if (!domainMapping || domainMapping.companyId !== companyId) {
+            return res.status(404).json({ error: 'Domain mapping not found.' });
+        }
+
+        const expectedRecord = `stagehand-verification=${domainMapping.verificationCode}`;
+        let txtRecords = [];
+        try {
+            txtRecords = await dns.resolveTxt(domainMapping.domain);
+        } catch (err) {
+            return res.status(400).json({ error: `Could not find TXT record for ${domainMapping.domain}. Please ensure the record has been added and has had time to propagate.` });
+        }
+        
+        const isVerified = txtRecords.some(record => record.includes(expectedRecord));
+
+        if (isVerified) {
+            const updatedDomain = await prisma.autoJoinDomain.update({
+                where: { id: domainMappingId },
+                data: { status: 'VERIFIED' }
+            });
+            return res.status(200).json(updatedDomain);
+        } else {
+            return res.status(400).json({ error: 'Verification failed. The TXT record found does not match the expected value.' });
+        }
+
+    } catch (error) {
+        console.error('Verify domain error:', error);
+        res.status(500).json({ error: 'An unexpected error occurred during verification.' });
     }
 });
 

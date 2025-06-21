@@ -39,7 +39,11 @@ router.post('/register', async (req, res) => {
       if (domain) {
         // Check for company-level match first
         const companyDomain = await prisma.autoJoinDomain.findFirst({
-          where: { domain: domain.toLowerCase(), companyId: { not: null } }
+          where: { 
+            domain: domain.toLowerCase(), 
+            companyId: { not: null },
+            status: 'VERIFIED'
+          }
         });
 
         if (companyDomain) {
@@ -61,7 +65,11 @@ router.post('/register', async (req, res) => {
 
         // Then check for organization-level match
         const orgDomain = await prisma.autoJoinDomain.findFirst({
-          where: { domain: domain.toLowerCase(), organizationId: { not: null } }
+          where: { 
+            domain: domain.toLowerCase(), 
+            organizationId: { not: null },
+            status: 'VERIFIED'
+          }
         });
 
         if (orgDomain) {
@@ -228,12 +236,12 @@ router.get('/check-domain', async (req, res) => {
     }
 
     try {
-		console.log('domain', domain);
         // Company-level match has precedence
         const companyDomain = await prisma.autoJoinDomain.findFirst({
             where: { 
                 domain: domain.toLowerCase(),
-                companyId: { not: null }
+                companyId: { not: null },
+                status: 'VERIFIED'
             },
             include: { company: { select: { name: true } } }
         });
@@ -250,7 +258,8 @@ router.get('/check-domain', async (req, res) => {
         const orgDomain = await prisma.autoJoinDomain.findFirst({
             where: {
                 domain: domain.toLowerCase(),
-                organizationId: { not: null }
+                organizationId: { not: null },
+                status: 'VERIFIED'
             },
             include: { organization: { select: { name: true } } }
         });
