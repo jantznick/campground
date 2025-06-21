@@ -122,9 +122,9 @@ This scenario requires a real external OIDC provider. A free Okta or Auth0 devel
 
 1.  **Configure an OIDC Application** in your chosen provider (e.g., Okta).
     *   **Application Type**: Web Application.
-    *   **Sign-in redirect URIs / Callback URL**: Copy the "Callback / Redirect URL" from the Stagehand settings page (e.g., `http://localhost:3001/api/v1/auth/oidc/callback`) and paste it here.
+    *   **Sign-in redirect URIs / Callback URL**: Copy the "Callback / Redirect URL" from the Campground settings page (e.g., `http://localhost:3001/api/v1/auth/oidc/callback`) and paste it here.
     *   **Assignments**: Assign at least two test users in your provider to this application (e.g., `sso_new_user@yourdomain.com` and `sso_existing_user@yourdomain.com`).
-2.  **Log in to Stagehand** as `globaladmin@test.com` (`ADMIN` of **TechCorp**).
+2.  **Log in to Campground** as `globaladmin@test.com` (`ADMIN` of **TechCorp**).
 3.  **Navigate to Settings** -> Organization Settings for "TechCorp".
 4.  **Configure OIDC Settings**:
     *   Go to the "Single Sign-On (OIDC)" section.
@@ -138,19 +138,19 @@ This tests the flow when a user starts from our login page.
 
 1.  **Log out** from the `globaladmin@test.com` account.
 2.  Navigate to the **Login Page**.
-3.  Enter the email of a **new** OIDC test user (e.g., `sso_new_user@yourdomain.com`). This user should exist in the IdP but NOT in Stagehand.
+3.  Enter the email of a **new** OIDC test user (e.g., `sso_new_user@yourdomain.com`). This user should exist in the IdP but NOT in Campground.
 4.  **Expected Behavior**: After a brief delay, the password field should disappear, and a "Login with SSO" button should appear.
 5.  Click the login button. You should be redirected to your OIDC provider's login page.
 6.  Log in with the new test user's credentials on the provider's site.
 7.  **Expected Behavior on Redirect**:
-    *   You should be redirected back to the Stagehand dashboard.
+    *   You should be redirected back to the Campground dashboard.
     *   You are now logged in as `sso_new_user@yourdomain.com`.
     *   A new user should have been created in the database (Just-in-Time Provisioning).
     *   The user should be a member of the **TechCorp** organization with the **`EDITOR`** role, as defined in the `defaultRole` setting.
 
 #### 4.3. Test Case: SP-Initiated Login with an Existing User
 
-This tests linking an SSO login to a pre-existing Stagehand account.
+This tests linking an SSO login to a pre-existing Campground account.
 
 1.  First, ensure the user `projecta21_reader@test.com` exists in your IdP and is assigned to the application.
 2.  **Log out** of all accounts.
@@ -167,12 +167,12 @@ This tests linking an SSO login to a pre-existing Stagehand account.
 This tests the flow when a user starts from their Identity Provider's dashboard.
 
 1.  In a separate browser or incognito window, log into your Identity Provider's dashboard (e.g., Okta) as a test user (e.g., `sso_new_user@yourdomain.com` or another new user).
-2.  From the IdP's application dashboard, click on the Stagehand application icon.
+2.  From the IdP's application dashboard, click on the Campground application icon.
 3.  **Expected Behavior**:
-    *   You should be redirected directly to the Stagehand application and logged in automatically.
-    *   If the user did not exist in Stagehand previously, a new user should be created with the `EDITOR` role within the **TechCorp** organization (the org configured for that IdP `issuer`).
+    *   You should be redirected directly to the Campground application and logged in automatically.
+    *   If the user did not exist in Campground previously, a new user should be created with the `EDITOR` role within the **TechCorp** organization (the org configured for that IdP `issuer`).
     *   If the user already existed, they should simply be logged in.
-    *   This flow should work without ever visiting the Stagehand login page.
+    *   This flow should work without ever visiting the Campground login page.
 
 #### 4.5. Test Case: Disabling OIDC
 

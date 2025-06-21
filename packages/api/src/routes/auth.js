@@ -218,6 +218,118 @@ router.post('/logout', (req, res, next) => {
   });
 });
 
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user || !user.password) {
+      // To prevent account enumeration, we'll send a generic success response
+      // even if the user doesn't exist or is an SSO user.
+      console.log(`Password reset requested for non-existent or SSO user: ${email}`);
+      return res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    }
+
+    // Invalidate any existing reset tokens for this user
+    await prisma.passwordResetToken.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Generate a secure selector and validator
+    const selector = crypto.randomBytes(16).toString('hex');
+    const validator = crypto.randomBytes(32).toString('hex');
+    
+    const hashedValidator = await bcrypt.hash(validator, saltRounds);
+
+    // Set token expiration (e.g., 1 hour from now)
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        selector,
+        token: hashedValidator,
+        expiresAt,
+      },
+    });
+
+    // For now, log the reset link to the console instead of emailing it
+    // The token combines the selector and validator
+    const resetToken = `${selector}.${validator}`;
+    const resetLink = `${process.env.WEB_URL}/reset-password?token=${resetToken}`;
+    console.log(`Password reset link for ${email}: ${resetLink}`);
+
+    res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'An error occurred while processing your request.' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token and new password are required.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  }
+
+  try {
+    const [selector, validator] = token.split('.');
+
+    if (!selector || !validator) {
+      return res.status(400).json({ error: 'Invalid token format.' });
+    }
+
+    const passwordResetToken = await prisma.passwordResetToken.findUnique({
+      where: {
+        selector,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!passwordResetToken) {
+      return res.status(400).json({ error: 'Invalid or expired password reset token.' });
+    }
+
+    const isValidatorValid = await bcrypt.compare(validator, passwordResetToken.token);
+
+    if (!isValidatorValid) {
+        return res.status(400).json({ error: 'Invalid or expired password reset token.' });
+    }
+
+    const newHashedPassword = await bcrypt.hash(password, saltRounds);
+
+    await prisma.user.update({
+      where: { id: passwordResetToken.userId },
+      data: { password: newHashedPassword },
+    });
+
+    await prisma.passwordResetToken.delete({
+      where: { id: passwordResetToken.id },
+    });
+
+    res.status(200).json({ message: 'Password has been reset successfully.' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'An error occurred while resetting your password.' });
+  }
+});
+
 // GET /api/v1/auth/check-domain - Check if a domain is registered for auto-join
 router.get('/check-domain', async (req, res) => {
     const { domain } = req.query;
