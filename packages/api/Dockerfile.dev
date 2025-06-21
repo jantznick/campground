@@ -26,18 +26,7 @@ COPY . .
 # Generate the Prisma client for the API workspace
 RUN npm run prisma:generate --workspace=api
 
-# Copy the api package files
-COPY packages/api/package.json packages/api/
-
-WORKDIR /app/packages/api
-
 EXPOSE 3001
 
-# Clean node_modules, reinstall, and then run the dev server.
-# This ensures that a fresh Prisma Client is generated on every container start,
-# which is crucial for development when the schema changes.
-CMD ["sh", "-c", "rm -rf node_modules"] 
-
-CMD ["npm" "install"]
-
-CMD ["npm" "run" "dev"]
+# The CMD instruction should be in the docker-compose.yml for development
+# so it can be easily overridden and managed. We remove them from here.

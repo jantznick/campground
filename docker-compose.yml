@@ -21,7 +21,7 @@ services:
       context: .
       dockerfile: packages/api/Dockerfile.dev
     working_dir: /app
-    command: sh -c "npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma && npm run dev --workspace=api"
+    command: sh -c "npm install --workspace=api && npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma && npm run dev --workspace=api"
     container_name: campground-api
     ports:
       - "3001:3001"
