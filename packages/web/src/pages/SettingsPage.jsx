@@ -9,6 +9,7 @@ import AccessManagement from '../components/settings/AccessManagement';
 import HierarchySettings from '../components/settings/HierarchySettings';
 import DomainManagement from '../components/settings/DomainManagement';
 import { ShieldAlert, ArrowLeft, Trash2 } from 'lucide-react';
+import { resetAllStores } from '../stores/reset.js';
 
 const findItemRecursive = (nodes, targetId, targetType) => {
     for (const node of nodes) {
@@ -63,6 +64,10 @@ const SettingsPage = () => {
     const organization = itemType === 'organization'
         ? hierarchy.find(org => org.id === id)
         : null;
+
+    useEffect(() => {
+        resetAllStores();
+    }, [id]);
 
     useEffect(() => {
         if (hierarchy && hierarchy.length > 0) {

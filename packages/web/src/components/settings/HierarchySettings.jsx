@@ -4,15 +4,25 @@ import useOrganizationStore from '../../stores/useOrganizationStore';
 import useAuthStore from '../../stores/useAuthStore';
 
 const HierarchySettings = () => {
-    const { activeOrganization, getDisplayName, updateItem } = useHierarchyStore();
-    const { updateOrganization, isLoading } = useOrganizationStore();
+    const { 
+        getDisplayName, 
+        activeOrganization, 
+        updateHierarchyDisplayNames,
+        isLoading, 
+    } = useHierarchyStore();
+    const { updateOrganization, isLoading: orgLoading } = useOrganizationStore();
     const { user } = useAuthStore();
     
-    const [displayNames, setDisplayNames] = useState({});
+    const [displayNames, setDisplayNames] = useState({
+        organization: { singular: '', plural: '' },
+        company: { singular: '', plural: '' },
+        team: { singular: '', plural: '' },
+        project: { singular: '', plural: '' },
+    });
     const [isAdmin, setIsAdmin] = useState(false);
-    const [success, setSuccess] = useState(null);
     const [error, setError] = useState(null);
-    
+    const [success, setSuccess] = useState(null);
+
     useEffect(() => {
         if (activeOrganization) {
             // Pre-fill the form with existing custom names or defaults from the store
@@ -30,34 +40,48 @@ const HierarchySettings = () => {
         }
     }, [activeOrganization, getDisplayName, user.memberships]);
 
+    useEffect(() => {
+        if (activeOrganization?.hierarchyDisplayNames) {
+            // Deep merge to handle cases where some names might not be set
+            const newNames = JSON.parse(JSON.stringify(displayNames));
+            for (const type in newNames) {
+                if (activeOrganization.hierarchyDisplayNames[type]) {
+                    newNames[type].singular = activeOrganization.hierarchyDisplayNames[type].singular || '';
+                    newNames[type].plural = activeOrganization.hierarchyDisplayNames[type].plural || '';
+                }
+            }
+            setDisplayNames(newNames);
+        }
+    }, [activeOrganization]);
+
     const handleChange = (type, form, value) => {
         setDisplayNames(prev => ({
             ...prev,
             [type]: {
                 ...prev[type],
-                [form]: value
-            }
+                [form]: value,
+            },
         }));
     };
     
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!isAdmin) return;
-
-        setSuccess(null);
         setError(null);
-
+        setSuccess(null);
+        if (!activeOrganization) {
+            setError("No active organization selected.");
+            return;
+        }
         try {
-            const updatedOrg = await updateOrganization(activeOrganization.id, {
-                hierarchyDisplayNames: displayNames
-            });
-            updateItem(updatedOrg);
-            setSuccess('Hierarchy terminology updated successfully!');
-            setTimeout(() => setSuccess(null), 4000);
+            await updateHierarchyDisplayNames(activeOrganization.id, displayNames);
+            setSuccess('Display names updated successfully!');
         } catch (err) {
-            console.error("Failed to update display names:", err);
             setError(err.message);
-            setTimeout(() => setError(null), 4000);
+        } finally {
+            setTimeout(() => {
+                setSuccess(null);
+                setError(null);
+            }, 3000);
         }
     };
 

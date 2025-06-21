@@ -5,6 +5,7 @@ import useProjectStore from './useProjectStore';
 import useTeamStore from './useTeamStore';
 import useMembershipStore from './useMembershipStore';
 import useUIStore from './useUIStore';
+import useDomainStore from './useDomainStore';
 
 
 export const resetAllStores = () => {
@@ -15,4 +16,5 @@ export const resetAllStores = () => {
     useTeamStore.getState().reset();
     useMembershipStore.getState().reset();
     useUIStore.getState().reset();
+    useDomainStore.getState().reset();
 }; 

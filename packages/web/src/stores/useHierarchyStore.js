@@ -63,6 +63,32 @@ const useHierarchyStore = create((set, get) => {
         return defaultNames[type]?.[form] || type;
     },
 
+    updateHierarchyDisplayNames: async (organizationId, displayNames) => {
+        set({ isLoading: true });
+        try {
+            const response = await fetch(`/api/v1/organizations/${organizationId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hierarchyDisplayNames: displayNames }),
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to update hierarchy names');
+            }
+            const updatedOrganization = await response.json();
+            set(state => ({
+                activeOrganization: { ...state.activeOrganization, ...updatedOrganization },
+                isLoading: false,
+            }));
+            // Also update the organization within the main hierarchy list
+            get().updateItem({ ...updatedOrganization, type: 'organization' });
+            return updatedOrganization;
+        } catch (error) {
+            set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
     setInitialActiveItems: () => set(state => {
         if (!state.hierarchy || state.hierarchy.length === 0 || state.activeOrganization) {
             return {}; // No data to set or already set
