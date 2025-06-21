@@ -1,28 +1,87 @@
-### We are creating a webapp boilerplate for creating multi-tenant web applications.
+# Campground
 
-AI Agent Developers should follow the rules in .cursor/rules/rules.mdc
+### Ship Your SaaS, Not Your Scaffolding
 
-The application should use the following color palette:
---prussian-blue: #003049ff;
---fire-engine-red: #d62828ff;
---orange-wheel: #f77f00ff;
---xanthous: #fcbf49ff;
---vanilla: #eae2b7ff;
+Campground is a production-ready, open-source boilerplate for building scalable, multi-tenant web applications. It comes with a complete, modern tech stack and pre-built features like a flexible hierarchy, role-based permissions, and user authentication, so you can focus on building what matters most: your product.
 
-The application should have the following multi-tenant hierarchy:
-Organizations(Org) -> Companies(Company) -> Teams(Team) -> Projects(Project)
+This project is designed to give you a massive head start when developing a SaaS application that requires sophisticated tenancy and permission models.
 
-Be default Organizations will be hidden unless it's toggled to on via settings.
+---
 
-For user roles to start the following user roles should exist:
-- Admin: Able to do anything at the given hierarchy level and below
-- Editor: Able to do anything at the given hierarchy level and below. Except: Editors can not edit their highest most hierarchy options. Example: If someone is an editor of a company they can edit anything within a company, but not the company settings such as name, description, etc...
-- Reader: Can read anything at their given hierarchy level and below.
+## Core Features
 
-Users can have multiple roles across the various hierarchy levels.
+Campground provides a robust foundation with all the essential features needed for a modern multi-tenant application.
 
-There should be a middleware created that verifies users are able to access/edit the right information via page loads or API calls.
+*   **Flexible Multi-Tenant Hierarchies:**
+    *   Model complex organizational structures right out of the box: **Organizations → Companies → Teams → Projects**.
+    *   The hierarchy is fully customizable, allowing you to rename levels to fit your specific domain needs (e.g., "Schools" instead of "Companies").
+    *   The top-level "Organization" can be toggled on or off depending on your business requirements.
 
-When registering a user is given the ability to enter an invite token(in the form of a UUID), by entering this invite token they will be given immediate access to the permissions that invite token was previously set up with. The registration page should also check for an invite token as a url param so at a later date the ability to send invite emails exists.
+*   **Role-Based Access Control (RBAC):**
+    *   A granular permission system is built-in with default roles: **Admin**, **Editor**, and **Reader**.
+    *   Permissions are hierarchical, meaning roles at a higher level (like a Company) grant access to all nested resources (like Teams and Projects within it).
+    *   A secure middleware layer on the backend enforces all permission checks for every API request.
 
-If there's not an invite token then the user will be creating a brand new Organization.
+*   **User Authentication & Onboarding:**
+    *   **Secure Authentication:** Features a complete, session-based authentication system.
+    *   **Invite System:** Effortlessly onboard new users with invite links. Invitations can pre-configure a user's role and access level before they even sign up.
+    *   **Automatic Domain Join:** Automatically assign new users to the correct Organization or Company based on their email domain, with built-in DNS verification for security.
+
+*   **Ready-to-Deploy:**
+    *   The entire application is containerized with Docker.
+    *   Get a full development environment running locally—including the database—with a single command: `docker-compose up`.
+
+## Coming Soon Features
+
+ **OIDC & SSO:** Designed to easily integrate with identity providers like Okta, Auth0, or any other OIDC-compliant service for seamless enterprise login
+ **Email Capabilities:** Email notifications and other transaction email needs
+ **User Notification System:** A general user notification system
+
+---
+
+## Tech Stack
+
+Campground is built with a modern, reliable, and no-nonsense tech stack chosen for developer productivity and scalability.
+
+| Category      | Technology                                                                                                                              |
+|---------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| **Backend**       | **Node.js**, **Express.js**, **Prisma** (ORM for PostgreSQL)                                                                            |
+| **Frontend**      | **React**, **Vite**, **Zustand** (for state management), **Tailwind CSS** (with Headless UI & Catalyst components)                      |
+| **Database**      | **PostgreSQL**                                                                                                                          |
+| **Dev & Tooling** | **Docker** & **Docker Compose**, **NPM Workspaces** (Monorepo), **ESLint**, **Prettier**                                                    |
+
+---
+
+## Getting Started
+
+You can get a local instance of Campground running in minutes.
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/jantznick/campground.git
+    cd campground
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Set up environment variables:**
+    ```bash
+    cp .env.example .env
+    ```
+    *You can customize your database connection and other settings in the newly created `.env` file.*
+
+4.  **Start the application:**
+    ```bash
+    docker-compose up
+    ```
+
+This will start the backend API server, the frontend Vite development server, and the PostgreSQL database. The application will be available at `http://localhost:3000`.
+
+---
+
+## Project Philosophy
+
+The goal of Campground is to handle the complex, repetitive, and critical foundation of a multi-tenant SaaS application so that individual developers and teams can build and ship their unique products faster. PRs are welcome.
