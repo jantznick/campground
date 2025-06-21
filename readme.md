@@ -6,6 +6,8 @@ Campground is a production-ready, open-source boilerplate for building scalable,
 
 This project is designed to give you a massive head start when developing a SaaS application that requires sophisticated tenancy and permission models.
 
+This project was built largely with cursor on Gemini 2.5 Pro model and mostly monitored, refactored and approved by a senior level developer. There are some definite pieces of bad code in here, however everything seems to be functioning as expected. 
+
 ---
 
 ## Core Features
@@ -34,7 +36,9 @@ Campground provides a robust foundation with all the essential features needed f
 ## Coming Soon Features
 
  **OIDC & SSO:** Designed to easily integrate with identity providers like Okta, Auth0, or any other OIDC-compliant service for seamless enterprise login
+ 
  **Email Capabilities:** Email notifications and other transaction email needs
+ 
  **User Notification System:** A general user notification system
 
 ---
