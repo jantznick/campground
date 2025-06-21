@@ -23,6 +23,11 @@ body {
   color: var(--vanilla);
 }
 
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
 .main-container {
   display: flex;
   flex-direction: column;

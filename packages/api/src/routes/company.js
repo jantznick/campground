@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { promises as dns } from 'dns';
 import { protect } from '../middleware/authMiddleware.js';
 import { getVisibleResourceIds, hasPermission } from '../utils/permissions.js';
+import { getAncestors, getDescendants } from '../utils/hierarchy.js';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -142,21 +143,43 @@ const PUBLIC_DOMAINS = new Set(['gmail.com', 'yahoo.com', 'hotmail.com', 'outloo
 // GET /api/v1/companies/:id/domains - Get all auto-join domains for a company
 router.get('/:id/domains', async (req, res) => {
     const { id } = req.params;
-
-    const canManage = await hasPermission(req.user, 'ADMIN', 'company', id);
-    if (!canManage) {
-        return res.status(403).json({ error: 'You are not authorized to manage domains for this company.' });
-    }
-
+    
     try {
+        // Authorization Check: User must be a member of the hierarchy to view its domains.
+        const ancestors = await getAncestors('company', id);
+        const descendants = await getDescendants('company', id);
+
+        const resourceTreeIds = {
+            organizationIds: [ancestors.organizationId].filter(Boolean),
+            companyIds: [id, ...Object.values(ancestors).filter(Boolean)],
+            teamIds: descendants.teamIds,
+            projectIds: descendants.projectIds,
+        };
+        
+        const userMembership = await prisma.membership.findFirst({
+            where: {
+                userId: req.user.id,
+                OR: [
+                    { organizationId: { in: resourceTreeIds.organizationIds } },
+                    { companyId: { in: resourceTreeIds.companyIds } },
+                    { teamId: { in: resourceTreeIds.teamIds } },
+                    { projectId: { in: resourceTreeIds.projectIds } },
+                ]
+            }
+        });
+
+        if (!userMembership) {
+            return res.status(403).json({ error: 'You are not authorized to view domains for this company.' });
+        }
+
         const domains = await prisma.autoJoinDomain.findMany({
             where: { companyId: id },
-            orderBy: { createdAt: 'asc' }
+            orderBy: { domain: 'asc' }
         });
-        res.status(200).json(domains);
+        res.json(domains);
     } catch (error) {
         console.error('Get domains error:', error);
-        res.status(500).json({ error: 'Failed to retrieve domains.' });
+        res.status(500).json({ error: 'Failed to get domains.' });
     }
 });
 

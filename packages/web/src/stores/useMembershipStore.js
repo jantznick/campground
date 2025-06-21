@@ -39,16 +39,16 @@ const useMembershipStore = create((set) => {
                     throw new Error(err.error || 'Failed to add member');
                 }
                 const data = await response.json();
-                
-                if (data.invitationLink) {
-                    set({ invitationLink: data.invitationLink, loading: false });
-                } else {
-                    set((state) => ({
-                        members: [...state.members, data],
-                        loading: false,
-                    }));
-                }
-                return data;
+                const newMember = { ...data };
+                delete newMember.invitationLink;
+
+                set((state) => ({
+                    members: state.members.find(m => m.user.id === newMember.user.id)
+                        ? state.members.map(m => m.user.id === newMember.user.id ? newMember : m)
+                        : [...state.members, newMember],
+                    loading: false,
+                    invitationLink: data.invitationLink || null,
+                }));
             } catch (error) {
                 set({ error: error.message, loading: false });
                 throw error;
@@ -71,23 +71,21 @@ const useMembershipStore = create((set) => {
             }
         },
 
-        updateMemberRole: async (membershipId, role) => {
+        updateMemberRole: async (membershipId, role, resourceType, resourceId) => {
             set({ loading: true, error: null });
             try {
                 const response = await fetch(`/api/v1/memberships/${membershipId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role })
+                    body: JSON.stringify({ role, resourceType, resourceId }),
                 });
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.error || 'Failed to update member role');
                 }
-                const data = await response.json();
-                set((state) => ({
-                    members: state.members.map((m) =>
-                        m.id === membershipId ? data : m
-                    ),
+                const updatedMember = await response.json();
+                set(state => ({
+                    members: state.members.map(m => m.user.id === updatedMember.user.id ? updatedMember : m),
                     loading: false,
                 }));
             } catch (error) {

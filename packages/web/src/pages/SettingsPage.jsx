@@ -5,6 +5,8 @@ import useOrganizationStore from '../stores/useOrganizationStore';
 import useCompanyStore from '../stores/useCompanyStore';
 import useTeamStore from '../stores/useTeamStore';
 import useProjectStore from '../stores/useProjectStore';
+import useMembershipStore from '../stores/useMembershipStore';
+import useAuthStore from '../stores/useAuthStore';
 import AccessManagement from '../components/settings/AccessManagement';
 import HierarchySettings from '../components/settings/HierarchySettings';
 import DomainManagement from '../components/settings/DomainManagement';
@@ -51,9 +53,12 @@ const SettingsPage = () => {
     const { updateCompany, deleteCompany } = useCompanyStore();
     const { updateTeam, deleteTeam } = useTeamStore();
     const { updateProject, deleteProject } = useProjectStore();
+    const { members, fetchMembers } = useMembershipStore();
+    const { user } = useAuthStore();
     
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -67,7 +72,10 @@ const SettingsPage = () => {
 
     useEffect(() => {
         resetAllStores();
-    }, [id]);
+        if (id) {
+            fetchMembers(itemType, id);
+        }
+    }, [id, itemType, fetchMembers]);
 
     useEffect(() => {
         if (hierarchy && hierarchy.length > 0) {
@@ -88,6 +96,15 @@ const SettingsPage = () => {
             setLoading(true);
         }
     }, [hierarchy, id, itemType]);
+
+    useEffect(() => {
+        if (members && user) {
+            const currentUserMembership = members.find(m => m.user.id === user.id);
+            setIsAdmin(currentUserMembership?.effectiveRole === 'ADMIN');
+        } else {
+            setIsAdmin(false);
+        }
+    }, [members, user]);
 
     const handleUpgrade = async () => {
         if (!id) return;
@@ -245,7 +262,7 @@ const SettingsPage = () => {
 
             {itemType === 'organization' && <HierarchySettings />}
 
-            {itemType === 'organization' && organization && (
+            {itemType === 'organization' && isAdmin && organization && (
                 <div className="mt-8">
                     <h2 className="text-xl font-bold mb-4">Account Plan</h2>
                     <div className="bg-white/5 p-6 rounded-xl border border-white/10">

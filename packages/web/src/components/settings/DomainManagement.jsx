@@ -1,38 +1,63 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import useDomainStore from '../../stores/useDomainStore';
+import useMembershipStore from '../../stores/useMembershipStore';
+import useAuthStore from '../../stores/useAuthStore';
 import { Trash2, Plus, AlertTriangle, Copy, Check, RefreshCw } from 'lucide-react';
 
 const DomainManagement = ({ resourceType, resourceId }) => {
     const { domains, loading, error, fetchDomains, addDomain, removeDomain, verifyDomain } = useDomainStore();
+    const { members, fetchMembers } = useMembershipStore();
+    const { user } = useAuthStore();
+    const [isAdmin, setIsAdmin] = useState(false);
     const [newDomain, setNewDomain] = useState('');
     const [newRole, setNewRole] = useState('READER');
     const [formError, setFormError] = useState('');
     const [copiedCode, setCopiedCode] = useState(null);
     const [verifyingId, setVerifyingId] = useState(null);
+    const [countdown, setCountdown] = useState(60);
 
     const refreshDomains = useCallback(() => {
         if (resourceId) {
             fetchDomains(resourceType, resourceId);
+            fetchMembers(resourceType, resourceId);
         }
-    }, [resourceId, resourceType, fetchDomains]);
+    }, [resourceId, resourceType, fetchDomains, fetchMembers]);
 
     useEffect(() => {
         refreshDomains();
     }, [refreshDomains]);
 
-    // Automatic re-verification interval
+    useEffect(() => {
+        if (members && user) {
+            const currentUserMembership = members.find(m => m.user.id === user.id);
+            setIsAdmin(currentUserMembership?.effectiveRole === 'ADMIN');
+        } else {
+            setIsAdmin(false);
+        }
+    }, [members, user]);
+
+    // Automatic re-verification and countdown timers
     useEffect(() => {
         const hasPending = domains.some(d => d.status === 'PENDING');
-        if (hasPending) {
-            const interval = setInterval(() => {
-                domains.forEach(d => {
-                    if (d.status === 'PENDING') {
-                        verifyDomain(d.id, resourceType, resourceId).catch(() => {}); // Ignore errors in background check
-                    }
-                });
-            }, 60000); // Re-check every 60 seconds
-            return () => clearInterval(interval);
-        }
+        if (!hasPending) return;
+
+        const recheckInterval = setInterval(() => {
+            domains.forEach(d => {
+                if (d.status === 'PENDING') {
+                    verifyDomain(d.id, resourceType, resourceId).catch(() => {}); // Ignore errors in background check
+                }
+            });
+            setCountdown(60); // Reset countdown on re-check
+        }, 60000); // Re-check every 60 seconds
+
+        const countdownInterval = setInterval(() => {
+            setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+        }, 1000);
+
+        return () => {
+            clearInterval(recheckInterval);
+            clearInterval(countdownInterval);
+        };
     }, [domains, resourceType, resourceId, verifyDomain]);
 
     const handleAddDomain = async (e) => {
@@ -76,6 +101,7 @@ const DomainManagement = ({ resourceType, resourceId }) => {
             <h2 className="text-xl font-bold mb-4">Auto-Join by Domain</h2>
             <div className="bg-white/5 p-6 rounded-xl border border-white/10">
                 <p className="text-white/70 mb-2">Allow users to automatically join this {resourceType} if they sign up with a verified email domain.</p>
+                { !isAdmin && <p className="text-orange-400 text-sm mb-4">You must be an Admin to manage domains.</p>}
                 
                 <form onSubmit={handleAddDomain} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 my-6">
                     <input
@@ -83,12 +109,14 @@ const DomainManagement = ({ resourceType, resourceId }) => {
                         value={newDomain}
                         onChange={(e) => setNewDomain(e.target.value)}
                         placeholder="example.com"
-                        className="flex-grow w-full sm:w-auto px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
+                        className="flex-grow w-full sm:w-auto px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)] disabled:bg-black/10 disabled:cursor-not-allowed"
+                        disabled={!isAdmin}
                     />
                     <select
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value)}
-                        className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)] w-full sm:w-auto"
+                        className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)] w-full sm:w-auto disabled:bg-black/10 disabled:cursor-not-allowed"
+                        disabled={!isAdmin}
                     >
                         <option value="READER">Reader</option>
                         <option value="EDITOR">Editor</option>
@@ -96,8 +124,8 @@ const DomainManagement = ({ resourceType, resourceId }) => {
                     </select>
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="px-4 py-2 bg-[var(--orange-wheel)] text-[var(--prussian-blue)] font-bold rounded-lg hover:bg-opacity-90 disabled:bg-opacity-50 flex items-center gap-2 w-full sm:w-auto justify-center"
+                        disabled={loading || !isAdmin}
+                        className="px-4 py-2 bg-[var(--orange-wheel)] text-[var(--prussian-blue)] font-bold rounded-lg hover:bg-opacity-90 disabled:bg-opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center"
                     >
                         <Plus size={16} /> Add Domain
                     </button>
@@ -127,25 +155,28 @@ const DomainManagement = ({ resourceType, resourceId }) => {
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                     {d.status === 'PENDING' && (
+                                     {d.status === 'PENDING' && isAdmin && (
                                         <button 
                                             onClick={() => handleVerifyDomain(d.id)} 
-                                            className="p-2 text-cyan-400 hover:text-cyan-300 disabled:text-gray-500 flex items-center gap-2"
+                                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:bg-cyan-800 disabled:text-gray-300 disabled:cursor-wait"
                                             disabled={loading || verifyingId === d.id}
                                             title="Verify Now"
                                         >
-                                            {verifyingId === d.id ? <RefreshCw size={18} className="animate-spin" /> : <RefreshCw size={18} />}
-                                            <span className="hidden sm:inline">Verify</span>
+                                            {verifyingId === d.id ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                                            <span>Verify</span>
+                                            <span className="text-cyan-200">({countdown}s)</span>
                                         </button>
                                     )}
-                                    <button 
-                                        onClick={() => removeDomain(d.id, resourceType, resourceId)} 
-                                        className="p-2 text-red-500 hover:text-red-400 disabled:text-gray-500"
-                                        disabled={loading}
-                                        title="Remove domain"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+                                    {isAdmin && (
+                                        <button 
+                                            onClick={() => removeDomain(d.id, resourceType, resourceId)} 
+                                            className="p-2 text-red-500 hover:text-red-400 disabled:text-gray-500"
+                                            disabled={loading}
+                                            title="Remove domain"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             {d.status === 'PENDING' && (

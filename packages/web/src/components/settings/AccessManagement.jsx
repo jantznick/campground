@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useMembershipStore from '../../stores/useMembershipStore';
+import useAuthStore from '../../stores/useAuthStore';
 import { Trash2, Edit, Save, X, Plus, Copy, Check, Send, Info } from 'lucide-react';
 
 const Tooltip = ({ children, text }) => {
@@ -18,6 +19,8 @@ const Tooltip = ({ children, text }) => {
 
 const AccessManagement = ({ resourceType, resourceId }) => {
     const { members, fetchMembers, addMember, removeMember, updateMemberRole, resendInvitation, loading, error, invitationLink } = useMembershipStore();
+    const { user } = useAuthStore();
+    const [isAdmin, setIsAdmin] = useState(false);
     const [newMemberEmail, setNewMemberEmail] = useState('');
     const [newMemberRole, setNewMemberRole] = useState('READER');
     const [editingMemberId, setEditingMemberId] = useState(null);
@@ -29,6 +32,17 @@ const AccessManagement = ({ resourceType, resourceId }) => {
             fetchMembers(resourceType, resourceId);
         }
     }, [resourceType, resourceId, fetchMembers]);
+
+    useEffect(() => {
+        if (members && user) {
+            const currentUserMembership = members.find(m => m.user.id === user.id);
+            if (currentUserMembership && currentUserMembership.effectiveRole === 'ADMIN') {
+                setIsAdmin(true);
+            } else {
+                setIsAdmin(false);
+            }
+        }
+    }, [members, user]);
 
     const handleAddMember = async (e) => {
         e.preventDefault();
@@ -42,9 +56,14 @@ const AccessManagement = ({ resourceType, resourceId }) => {
         }
     };
 
-    const handleUpdateRole = async (memberId) => {
+    const handleUpdateRole = async (member) => {
         try {
-            await updateMemberRole(memberId, editingRole);
+            // If the member has no direct membership ID, it's a viewer being promoted.
+            if (!member.id) {
+                await addMember(member.user.email, editingRole, resourceType, resourceId);
+            } else {
+                await updateMemberRole(member.id, editingRole, resourceType, resourceId);
+            }
             setEditingMemberId(null);
         } catch (err) {
             console.error(err);
@@ -53,7 +72,8 @@ const AccessManagement = ({ resourceType, resourceId }) => {
 
     const startEditing = (member) => {
         setEditingMemberId(member.user.id);
-        setEditingRole(member.effectiveRole);
+        // If editing a viewer, default to READER, otherwise use their current role.
+        setEditingRole(member.effectiveRole === 'VIEWER' ? 'READER' : member.effectiveRole);
     };
 
     const cancelEditing = () => {
@@ -72,19 +92,21 @@ const AccessManagement = ({ resourceType, resourceId }) => {
             <h2 className="text-xl font-bold mb-4">Access Management</h2>
             <div className="bg-white/5 p-6 rounded-xl border border-white/10">
                 {/* Add Member Form */}
-                <form onSubmit={handleAddMember} className="flex items-center gap-4 mb-6">
+                <form onSubmit={handleAddMember} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
                     <input
                         type="email"
                         value={newMemberEmail}
                         onChange={(e) => setNewMemberEmail(e.target.value)}
                         placeholder="user@example.com"
-                        className="flex-grow px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
+                        className="flex-grow w-full sm:w-auto px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)] disabled:bg-black/10 disabled:cursor-not-allowed"
                         required
+                        disabled={!isAdmin}
                     />
                     <select
                         value={newMemberRole}
                         onChange={(e) => setNewMemberRole(e.target.value)}
-                        className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
+                        className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)] w-full sm:w-auto disabled:bg-black/10 disabled:cursor-not-allowed"
+                        disabled={!isAdmin}
                     >
                         <option value="READER">Reader</option>
                         <option value="EDITOR">Editor</option>
@@ -92,12 +114,14 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                     </select>
                     <button
                         type="submit"
-                        disabled={loading}
-                        className="px-4 py-2 bg-[var(--orange-wheel)] text-[var(--prussian-blue)] font-bold rounded-lg hover:bg-opacity-90 disabled:bg-opacity-50 flex items-center gap-2"
+                        disabled={loading || !isAdmin}
+                        className="px-4 py-2 bg-[var(--orange-wheel)] text-[var(--prussian-blue)] font-bold rounded-lg hover:bg-opacity-90 disabled:bg-opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center"
                     >
                         <Plus size={16} /> Add Member
                     </button>
                 </form>
+                {!isAdmin && <p className="text-orange-400 text-sm -mt-4 mb-6">You must be an Admin to manage members.</p>}
+
                 {error && <div className="text-red-400 mb-4">{error}</div>}
 
                 {invitationLink && (
@@ -110,8 +134,8 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                 {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
                             </button>
                         </div>
-                         <span className="absolute top-0 bottom-0 right-0 px-4 py-3">
-                            <X size={18} className="cursor-pointer" onClick={() => useMembershipStore.setState({ invitationLink: null })} />
+                         <span className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer" onClick={() => useMembershipStore.setState({ invitationLink: null })}>
+                            <X size={18} />
                         </span>
                     </div>
                 )}
@@ -139,24 +163,26 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                                 value={editingRole}
                                                 onChange={(e) => setEditingRole(e.target.value)}
                                                 className="px-4 py-1 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--orange-wheel)]"
-                                                disabled={!isDirectMember}
+                                                disabled={!isAdmin}
                                             >
                                                 <option value="READER">Reader</option>
                                                 <option value="EDITOR">Editor</option>
                                                 <option value="ADMIN">Admin</option>
                                             </select>
-                                            <button onClick={() => handleUpdateRole(member.id)} className="text-green-400 hover:text-green-300"><Save size={18} /></button>
+                                            <button onClick={() => handleUpdateRole(member)} className="text-green-400 hover:text-green-300"><Save size={18} /></button>
                                             <button onClick={cancelEditing} className="text-gray-400 hover:text-white"><X size={18} /></button>
                                         </>
                                     ) : (
                                         <>
                                             <span className="text-sm uppercase text-gray-400 px-2 py-1 bg-black/30 rounded-md">{member.effectiveRole}</span>
-                                            {isDirectMember ? (
+                                            {isAdmin ? (
                                                 <button onClick={() => startEditing(member)} className="text-gray-400 hover:text-white"><Edit size={18} /></button>
                                             ) : (
-                                                <Tooltip text={member.roleSource}>
-                                                    <Info size={16} className="text-gray-400" />
-                                                </Tooltip>
+                                                 !member.id && ( // Show info icon for viewers if not admin
+                                                    <Tooltip text={member.roleSource}>
+                                                        <Info size={16} className="text-gray-400" />
+                                                    </Tooltip>
+                                                )
                                             )}
                                         </>
                                     )
@@ -166,13 +192,13 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                     <button
                                         onClick={() => resendInvitation(member.user.id)}
                                         className="text-gray-300 hover:text-[var(--orange-wheel)] transition-colors flex items-center gap-2 text-sm"
-                                        disabled={loading}
+                                        disabled={loading || !isAdmin}
                                     >
                                         <Send size={16} /> Resend Invite
                                     </button>
                                 )}
 
-                                {isDirectMember && (
+                                {member.id && isAdmin && (
                                     <button onClick={() => removeMember(member.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
                                 )}
                             </div>
