@@ -7,7 +7,6 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Sidebar from './components/sidebar/Sidebar';
-import logo from './logo.png';
 
 const PrivateRoute = ({ children }) => {
     const { user } = useAuthStore();

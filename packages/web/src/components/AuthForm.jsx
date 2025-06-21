@@ -40,7 +40,10 @@ const AuthForm = ({
         <div className="flex items-center justify-center min-h-screen bg-[var(--prussian-blue)]">
             <div className="w-full max-w-md p-8 space-y-8 bg-white/5 rounded-2xl shadow-lg border border-white/10 text-white">
                 <div>
-                    <img className="mx-auto h-12 w-auto" src={logo} alt="campground" />
+                    <div className="flex justify-center items-center space-x-3">
+                        <img className="h-12 w-auto" src={logo} alt="Campground logo" />
+                        <span className="text-4xl font-extrabold text-[var(--xanthous)]">Campground</span>
+                    </div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold">{title}</h2>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

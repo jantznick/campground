@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 import AuthForm from '../components/AuthForm';
-import logo from '../logo.png';
 import { useDebounce } from '../hooks/useDebounce';
 
 const RegisterPage = () => {
