@@ -22,7 +22,7 @@ const ResetPasswordPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    const urlToken = searchParams.get('token');
+    const urlToken = searchParams.get('password_reset_token');
     if (urlToken) {
       setToken(urlToken);
     } else {

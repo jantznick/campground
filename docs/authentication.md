@@ -127,7 +127,7 @@ As noted, SSO-provisioned users cannot currently set a password. To implement th
 
 1.  **Create a "Forgot Password" flow**:
     *   Build a new API endpoint (e.g., `POST /api/v1/auth/forgot-password`). It takes an email, finds the user, and emails them a secure, single-use, time-limited token (e.g., using a new `PasswordResetToken` model in Prisma).
-    *   Build a new page (e.g., `/reset-password?token=...`) that accepts this token.
+    *   Build a new page (e.g., `/reset-password?invite_token=...`) that accepts this token.
     *   The page submits the token and a new password to an endpoint like `POST /api/v1/auth/reset-password`.
     *   The endpoint validates the token, hashes the new password, and updates the `password` field on the `User` model.
 2.  **Update the Login UI**: On the login page, add a "Forgot Password?" link that directs users to this new flow.

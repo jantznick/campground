@@ -68,7 +68,8 @@ router.post('/resend', async (req, res) => {
 			},
 		})
         
-        const invitationLink = `${process.env.WEB_URL}/register?token=${invitation.token}`;
+        const invitationLink = `${process.env.WEB_URL}/register?invite_token=${invitation.token}`;
+		console.log(invitationLink);
 
         await sendEmail({
           to: user.email,

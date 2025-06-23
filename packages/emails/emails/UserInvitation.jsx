@@ -57,7 +57,7 @@ const btn = {
 export const UserInvitation = ({
   inviterName = 'Someone',
   organizationName = 'an organization',
-  inviteLink = 'http://localhost:3000/register?token=test-token',
+  inviteLink = 'http://localhost:3000/register?invite_token=test-token',
 }) => (
   <Html>
     <Head />

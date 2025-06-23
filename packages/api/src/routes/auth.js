@@ -37,9 +37,44 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     if (inviteToken) {
-      // Find the invitation, add user to the corresponding tenant with the specified role
-      // For now, we'll just return an error.
-      return res.status(501).json({ error: 'Invite token functionality not yet implemented.' });
+      const invitation = await prisma.invitation.findUnique({
+        where: { 
+          token: inviteToken,
+          expires: { gt: new Date() } 
+        },
+      });
+
+      if (!invitation) {
+        return res.status(400).json({ error: 'Invalid or expired invitation token.' });
+      }
+
+      // The user should already exist in a pending state
+      const userToUpdate = await prisma.user.findUnique({
+        where: { id: invitation.userId }
+      });
+
+      if (!userToUpdate || userToUpdate.email !== email) {
+        return res.status(400).json({ error: 'Invitation is not valid for this email address.' });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: invitation.userId },
+        data: {
+          password: hashedPassword,
+        },
+      });
+
+      await prisma.invitation.delete({ where: { id: invitation.id } });
+
+      req.login(updatedUser, (err) => {
+        if (err) {
+          console.error('Login after invitation accept error:', err);
+          return res.status(500).json({ error: 'An error occurred during login.' });
+        }
+        const { password: _, ...userWithoutPassword } = updatedUser;
+        return res.status(200).json(userWithoutPassword);
+      });
+      return; // End execution here
     } else {
       // Auto-join logic
       const domain = email.split('@')[1];
@@ -332,8 +367,9 @@ router.post('/forgot-password', async (req, res) => {
     // For now, log the reset link to the console instead of emailing it
     // The token combines the selector and validator
     const resetToken = `${selector}.${validator}`;
-    const resetLink = `${process.env.WEB_URL}/reset-password?token=${resetToken}`;
+    const resetLink = `${process.env.WEB_URL}/reset-password?password_reset_token=${resetToken}`;
 
+	console.log(resetLink);
     await sendEmail({
       to: email,
       subject: 'Reset Your Campground Password',
