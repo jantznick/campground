@@ -1,0 +1,22 @@
+{
+  "name": "@campground/emails",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Email templates for Campground",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "email dev",
+    "build": "email export --outDir ./dist",
+    "export": "email export --outDir ./dist"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "react-email": "4.0.16"
+  },
+  "dependencies": {
+    "@react-email/components": "0.1.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

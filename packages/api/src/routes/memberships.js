@@ -185,6 +185,22 @@ router.post('/', async (req, res) => {
             
             // Note: In a real app, you'd use a frontend URL from an environment variable.
             invitationLink = `http://localhost:3000/register?invite_token=${invitationToken}`;
+			// TODO: Send email to new user with invitation link
+			const inviter = await prisma.user.findUnique({ where: { id: req.user.id } });
+			const { organization, company } = await getMembershipDetails(resourceId);
+			const itemName = company?.name || organization?.name;
+	
+			// Send invitation email
+			await sendEmail({
+			  to: user.email,
+			  subject: `You've been invited to join ${itemName}`,
+			  templateName: 'userInvitation',
+			  templateProps: {
+				inviterName: inviter.name || inviter.email,
+				organizationName: itemName,
+				inviteLink: invitationLink,
+			  },
+			});
         }
 
         const existingMembership = await prisma.membership.findFirst({

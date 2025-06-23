@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import { protect } from '../middleware/authMiddleware.js';
 import { hasPermission } from '../utils/permissions.js';
 import crypto from 'crypto';
+import { sendEmail } from '../utils/email.js';
+import { UserInvitation } from '../../../emails/emails/UserInvitation.jsx';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -66,9 +68,19 @@ router.post('/resend', async (req, res) => {
 			},
 		})
         
-        const invitationLink = `http://localhost:3000/register?invite_token=${invitation.token}`;
+        const invitationLink = `${process.env.WEB_URL}/register?token=${invitation.token}`;
 
-        res.status(200).json({ invitationLink });
+        await sendEmail({
+          to: user.email,
+          subject: `You've been invited to Campground`,
+          react: UserInvitation({
+            inviterName: req.user.name || req.user.email,
+            organizationName: 'Campground', // This could be made more specific
+            inviteLink: invitationLink,
+          }),
+        });
+
+        res.status(200).json({ message: "Invitation sent successfully" });
 
     } catch (error) {
         console.error('Resend invitation error:', error);

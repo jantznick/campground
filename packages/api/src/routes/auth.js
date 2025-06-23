@@ -7,6 +7,10 @@ import { hasPermission } from '../utils/permissions.js';
 import passport from 'passport';
 import { decrypt } from '../utils/crypto.js';
 import { dynamicOidcStrategy } from '../utils/passport.js';
+import { sendEmail } from '../utils/email.js';
+import { ForgotPassword } from '../../../emails/emails/ForgotPassword.jsx';
+import { NewUserWelcome } from '../../../emails/emails/NewUserWelcome.jsx';
+import { AdminAutoJoinNotification } from '../../../emails/emails/AdminAutoJoinNotification.jsx';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -62,6 +66,34 @@ router.post('/register', async (req, res) => {
               }
             }
           });
+		  
+          const admins = await prisma.user.findMany({
+            where: {
+              memberships: {
+                some: {
+                  companyId: companyDomain.companyId,
+                  role: 'ADMIN',
+                },
+              },
+            },
+          });
+
+          const company = await prisma.company.findUnique({ where: { id: companyDomain.companyId }});
+
+          for (const admin of admins) {
+            await sendEmail({
+			  from: 'Campground <donotreply@mail.campground.creativeendurancelab.com>',
+              to: admin.email,
+              subject: `A new user has joined ${company.name}`,
+              react: AdminAutoJoinNotification({
+				adminName: admin.name || admin.email,
+				newUserName: user.name || user.email,
+				newUserEmail: user.email,
+				itemName: company.name,
+			  }),
+            });
+          }
+
           // Note: user is created, proceed to create session and log them in
           req.login(user, (err) => {
             if (err) {
@@ -95,6 +127,33 @@ router.post('/register', async (req, res) => {
               }
             }
           });
+		  
+          const admins = await prisma.user.findMany({
+            where: {
+              memberships: {
+                some: {
+                  organizationId: orgDomain.organizationId,
+                  role: 'ADMIN',
+                },
+              },
+            },
+          });
+
+          const organization = await prisma.organization.findUnique({ where: { id: orgDomain.organizationId }});
+
+          for (const admin of admins) {
+            await sendEmail({
+              to: admin.email,
+              subject: `A new user has joined ${organization.name}`,
+              react: AdminAutoJoinNotification({
+                adminName: admin.name || admin.email,
+                newUserName: user.name || user.email,
+                newUserEmail: user.email,
+                itemName: organization.name,
+              }),
+            });
+          }
+
           req.login(user, (err) => {
             if (err) {
               console.error('Login after registration error:', err);
@@ -144,6 +203,16 @@ router.post('/register', async (req, res) => {
         }
       });
       
+      const loginUrl = `${process.env.WEB_URL}/login`;
+      await sendEmail({
+        to: user.email,
+        subject: 'Welcome to Campground!',
+        react: NewUserWelcome({
+          firstName: user.name || user.email.split('@')[0],
+          loginUrl: loginUrl
+        })
+      });
+
       // Auto-login: create a session for the new user
       req.login(user, (err) => {
         if (err) {
@@ -264,7 +333,15 @@ router.post('/forgot-password', async (req, res) => {
     // The token combines the selector and validator
     const resetToken = `${selector}.${validator}`;
     const resetLink = `${process.env.WEB_URL}/reset-password?token=${resetToken}`;
-    console.log(`Password reset link for ${email}: ${resetLink}`);
+
+    await sendEmail({
+      to: email,
+      subject: 'Reset Your Campground Password',
+      react: ForgotPassword({
+        firstName: user.name || 'User',
+        resetLink: resetLink,
+      }),
+    });
 
     res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
 

@@ -14,6 +14,7 @@ COPY package.json package-lock.json* ./
 # Copy the package.json files for each workspace to ensure npm can link them
 COPY ./packages/api/package.json ./packages/api/
 COPY ./packages/web/package.json ./packages/web/
+COPY ./packages/emails/package.json ./packages/emails/
 
 # Install all dependencies for the monorepo
 RUN npm install --legacy-peer-deps --verbose
