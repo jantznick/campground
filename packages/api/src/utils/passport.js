@@ -82,6 +82,7 @@ export const dynamicOidcStrategy = async (req, res, next) => {
             user = await prisma.user.create({
               data: {
                 email,
+                emailVerified: true,
                 memberships: {
                   create: {
                     role: config.defaultRole, // Use the configured default role

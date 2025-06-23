@@ -16,6 +16,16 @@ const prisma = new PrismaClient();
 const router = Router();
 const saltRounds = 10;
 
+const generateVerificationToken = () => ({
+  verificationToken: crypto.randomInt(100000, 999999).toString(),
+  verificationTokenExpiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes from now
+});
+
+const sanitizeUser = (user) => {
+  const { password, verificationToken, verificationTokenExpiresAt, ...sanitized } = user;
+  return sanitized;
+};
+
 router.post('/register', async (req, res) => {
   const { email, password, inviteToken, accountType } = req.body;
   console.log('register', req.body);
@@ -35,6 +45,9 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
+    const loginUrl = `${process.env.WEB_URL}/login`;
 
     if (inviteToken) {
       const invitation = await prisma.invitation.findUnique({
@@ -61,18 +74,30 @@ router.post('/register', async (req, res) => {
         where: { id: invitation.userId },
         data: {
           password: hashedPassword,
+          emailVerified: false,
+          verificationToken,
+          verificationTokenExpiresAt,
         },
       });
 
       await prisma.invitation.delete({ where: { id: invitation.id } });
+
+      await sendEmail({
+        to: updatedUser.email,
+        subject: 'Welcome to Campground!',
+        react: NewUserWelcome({
+          firstName: updatedUser.name || updatedUser.email.split('@')[0],
+          loginUrl: loginUrl,
+          verificationCode: verificationToken,
+        })
+      });
 
       req.login(updatedUser, (err) => {
         if (err) {
           console.error('Login after invitation accept error:', err);
           return res.status(500).json({ error: 'An error occurred during login.' });
         }
-        const { password: _, ...userWithoutPassword } = updatedUser;
-        return res.status(200).json(userWithoutPassword);
+        return res.status(200).json(sanitizeUser(updatedUser));
       });
       return; // End execution here
     } else {
@@ -93,6 +118,9 @@ router.post('/register', async (req, res) => {
             data: {
               email,
               password: hashedPassword,
+              emailVerified: false,
+              verificationToken,
+              verificationTokenExpiresAt,
               memberships: {
                 create: {
                   role: companyDomain.role,
@@ -129,14 +157,23 @@ router.post('/register', async (req, res) => {
             });
           }
 
+          await sendEmail({
+            to: user.email,
+            subject: 'Welcome to Campground!',
+            react: NewUserWelcome({
+              firstName: user.name || user.email.split('@')[0],
+              loginUrl: loginUrl,
+              verificationCode: verificationToken,
+            })
+          });
+
           // Note: user is created, proceed to create session and log them in
           req.login(user, (err) => {
             if (err) {
               console.error('Login after registration error:', err);
               return res.status(500).json({ error: 'An error occurred during login after registration.' });
             }
-            const { password: _, ...userWithoutPassword } = user;
-            return res.status(201).json(userWithoutPassword);
+            return res.status(201).json(sanitizeUser(user));
           });
         }
 
@@ -154,6 +191,9 @@ router.post('/register', async (req, res) => {
             data: {
               email,
               password: hashedPassword,
+              emailVerified: false,
+              verificationToken,
+              verificationTokenExpiresAt,
               memberships: {
                 create: {
                   role: orgDomain.role,
@@ -189,13 +229,22 @@ router.post('/register', async (req, res) => {
             });
           }
 
+          await sendEmail({
+            to: user.email,
+            subject: 'Welcome to Campground!',
+            react: NewUserWelcome({
+              firstName: user.name || user.email.split('@')[0],
+              loginUrl: loginUrl,
+              verificationCode: verificationToken,
+            })
+          });
+
           req.login(user, (err) => {
             if (err) {
               console.error('Login after registration error:', err);
               return res.status(500).json({ error: 'An error occurred during login after registration.' });
             }
-            const { password: _, ...userWithoutPassword } = user;
-            return res.status(201).json(userWithoutPassword);
+            return res.status(201).json(sanitizeUser(user));
           });
         }
       }
@@ -220,6 +269,9 @@ router.post('/register', async (req, res) => {
         data: {
           email,
           password: hashedPassword,
+          emailVerified: false,
+          verificationToken,
+          verificationTokenExpiresAt,
           memberships: {
             create: {
               role: 'ADMIN',
@@ -238,13 +290,13 @@ router.post('/register', async (req, res) => {
         }
       });
       
-      const loginUrl = `${process.env.WEB_URL}/login`;
       await sendEmail({
         to: user.email,
         subject: 'Welcome to Campground!',
         react: NewUserWelcome({
           firstName: user.name || user.email.split('@')[0],
-          loginUrl: loginUrl
+          loginUrl: loginUrl,
+          verificationCode: verificationToken,
         })
       });
 
@@ -254,8 +306,7 @@ router.post('/register', async (req, res) => {
           console.error('Login after registration error:', err);
           return res.status(500).json({ error: 'An error occurred during login after registration.' });
         }
-        const { password: _, ...userWithoutPassword } = user;
-        return res.status(201).json(userWithoutPassword);
+        return res.status(201).json(sanitizeUser(user));
       });
     }
 
@@ -297,13 +348,51 @@ router.post('/login', async (req, res, next) => {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
+        if (!user.emailVerified) {
+          const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
+          const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              verificationToken,
+              verificationTokenExpiresAt,
+            },
+            include: {
+              memberships: {
+                select: {
+                  role: true,
+                  organizationId: true,
+                  companyId: true,
+                  teamId: true,
+                  projectId: true
+                }
+              }
+            }
+          });
+
+          const loginUrl = `${process.env.WEB_URL}/login`;
+          await sendEmail({
+            to: updatedUser.email,
+            subject: 'Verify Your Email Address',
+            react: NewUserWelcome({
+              firstName: updatedUser.name || updatedUser.email.split('@')[0],
+              loginUrl: loginUrl,
+              verificationCode: verificationToken,
+            })
+          });
+          
+          req.login(updatedUser, (err) => {
+            if (err) { return next(err); }
+            return res.status(200).json(sanitizeUser(updatedUser));
+          });
+          return;
+        }
+
         // Use req.login provided by Passport
         req.login(user, (err) => {
             if (err) { return next(err); }
             
             // We don't want to send the password hash back
-            const { password: _, ...userWithoutPassword } = user;
-            return res.status(200).json(userWithoutPassword);
+            return res.status(200).json(sanitizeUser(user));
         });
 
     } catch (error) {
@@ -572,7 +661,7 @@ router.post('/accept-invitation', async (req, res) => {
         
         // We don't want to send the password hash back
         const { password: _, ...userWithoutPassword } = user;
-        res.status(200).json(userWithoutPassword);
+        res.status(200).json(sanitizeUser(userWithoutPassword));
 
     } catch (error) {
         console.error('Accept invitation error:', error);
@@ -598,7 +687,7 @@ router.all('/auth/oidc/callback', dynamicOidcStrategy, (req, res, next) => {
 // A route to get the current authenticated user's info
 router.get('/me', protect, (req, res) => {
     // If the middleware succeeds, req.user will be populated
-    res.status(200).json(req.user);
+    res.status(200).json(sanitizeUser(req.user));
 });
 
 // GET /api/v1/auth/oidc-status?email=...
@@ -632,6 +721,78 @@ router.get('/oidc-status', async (req, res) => {
   } catch (error) {
     console.error('Error checking OIDC status:', error);
     res.status(500).json({ error: 'Server error checking OIDC status.' });
+  }
+});
+
+router.post('/verify-email', protect, async (req, res) => {
+  const { token } = req.body;
+  const userId = req.user.id;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Verification token is required.' });
+  }
+
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        verificationToken: token,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid verification token.' });
+    }
+
+    if (new Date() > user.verificationTokenExpiresAt) {
+      return res.status(400).json({ error: 'Verification token has expired.' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerified: true,
+        verificationToken: null,
+        verificationTokenExpiresAt: null,
+      },
+    });
+    
+    res.status(200).json(sanitizeUser(updatedUser));
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'An error occurred during email verification.' });
+  }
+});
+
+router.post('/resend-verification', protect, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        verificationToken,
+        verificationTokenExpiresAt,
+      },
+    });
+
+    const loginUrl = `${process.env.WEB_URL}/login`;
+    await sendEmail({
+      to: user.email,
+      subject: 'Verify Your Email Address',
+      react: NewUserWelcome({
+        firstName: user.name || user.email.split('@')[0],
+        loginUrl: loginUrl,
+        verificationCode: verificationToken,
+      })
+    });
+
+    res.status(200).json({ message: 'A new verification code has been sent.' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ error: 'An error occurred while resending the verification code.' });
   }
 });
 

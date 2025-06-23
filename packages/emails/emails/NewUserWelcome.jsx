@@ -54,9 +54,26 @@ const btn = {
   margin: '0 auto',
 };
 
+const codeContainer = {
+  background: 'rgba(0,0,0,.05)',
+  borderRadius: '4px',
+  margin: '16px auto 14px',
+  verticalAlign: 'middle',
+  width: '280px',
+};
+
+const codeText = {
+  color: '#000',
+  fontSize: '36px',
+  fontWeight: 'bold',
+  textAlign: 'center',
+  letterSpacing: '10px'
+};
+
 export function NewUserWelcome({
   firstName = 'User',
   loginUrl = 'http://localhost:3000/login',
+  verificationCode = '123456',
 }) {
   return (
   <Html>
@@ -75,10 +92,30 @@ export function NewUserWelcome({
             textAlign: 'center',
           }}
         >
-          We're excited to have you on board. To get started, please log in to your new account.
+          {verificationCode
+            ? "Thanks for signing up! Please use the code below to verify your email address and finish setting up your account."
+            : "We're excited to have you on board. To get started, please log in to your new account."}
         </Text>
+        
+        {verificationCode && (
+          <>
+            <div style={codeContainer}>
+              <Text style={codeText}>{verificationCode}</Text>
+            </div>
+            <Text
+              style={{
+                ...text,
+                padding: '0 20px',
+                textAlign: 'center',
+              }}
+            >
+              (This code is valid for 15 minutes)
+            </Text>
+          </>
+        )}
+
         <Button style={btn} href={loginUrl}>
-          Login to Your Account
+          {verificationCode ? 'Go to Verification' : 'Login to Your Account'}
         </Button>
       </Container>
     </Body>

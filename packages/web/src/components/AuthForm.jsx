@@ -27,13 +27,21 @@ const AuthForm = ({
     setPassword,
     isEmailDisabled = false,
     title,
+    subtitle,
+    message,
     buttonText,
     footerContent,
     domainCheckMessage,
+    verificationCode,
+    setVerificationCode,
 }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ email, password });
+    if (formType === 'verify-email') {
+      onSubmit({ code: verificationCode });
+    } else {
+      onSubmit({ email, password });
+    }
   };
 
   return (
@@ -45,26 +53,31 @@ const AuthForm = ({
                         <span className="text-4xl font-extrabold text-[var(--xanthous)]">Campground</span>
                     </div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold">{title}</h2>
+                    {subtitle && (
+                        <p className="mt-2 text-center text-sm text-gray-400">{subtitle}</p>
+                    )}
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
-                        <div className="relative">
-                             <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                <MailIcon className="h-5 w-5 text-gray-500" />
-                            </span>
-        <input
-                                id="email-address"
-                                name="email"
-          type="email"
-                                autoComplete="email"
-                                required
-                                className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm disabled:bg-black/30 disabled:text-gray-400"
-                                placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-                                disabled={isEmailDisabled}
-        />
-      </div>
+                        {email !== undefined && setEmail !== undefined && (
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <MailIcon className="h-5 w-5 text-gray-500" />
+                                </span>
+                                <input
+                                    id="email-address"
+                                    name="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    required
+                                    className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-sm disabled:bg-black/30 disabled:text-gray-400"
+                                    placeholder="Email address"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    disabled={isEmailDisabled || formType === 'verify-email'}
+                                />
+                            </div>
+                        )}
                         {domainCheckMessage && (
                             <div className="text-center text-sm text-cyan-300 bg-cyan-900/50 border border-cyan-400/50 px-3 py-2 rounded-lg">
                                 {domainCheckMessage}
@@ -88,9 +101,25 @@ const AuthForm = ({
                                 />
                             </div>
                         )}
+                        {formType === 'verify-email' && (
+                            <div className="relative">
+                                <input
+                                    id="verification-code"
+                                    name="verification-code"
+                                    type="text"
+                                    maxLength="6"
+                                    required
+                                    className="appearance-none relative block w-full text-center tracking-[1em] py-3 border border-gray-600 bg-black/20 placeholder-gray-500 rounded-lg focus:outline-none focus:ring-[var(--orange-wheel)] focus:border-[var(--orange-wheel)] focus:z-10 sm:text-lg"
+                                    placeholder="------"
+                                    value={verificationCode}
+                                    onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {error && <div className="text-red-400 text-sm text-center pt-2">{error}</div>}
+                    {message && <div className="text-green-400 text-sm text-center pt-2">{message}</div>}
 
                     <div className="pt-4">
                         <button

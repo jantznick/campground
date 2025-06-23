@@ -8,10 +8,18 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Sidebar from './components/sidebar/Sidebar';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 const PrivateRoute = ({ children }) => {
     const { user } = useAuthStore();
-    return user ? children : <Navigate to="/login" />;
+    if (!user) {
+        return <Navigate to="/login" />;
+    }
+    // If user is logged in but not verified, redirect them to the verification page.
+    if (!user.emailVerified) {
+        return <Navigate to="/verify" />;
+    }
+    return children;
 };
 
 const App = () => {
@@ -41,12 +49,13 @@ const App = () => {
     return (
         <Router>
             <div className="flex h-screen bg-[var(--prussian-blue)] text-white">
-                {user && <Sidebar />}
+                {user && user.emailVerified && <Sidebar />}
 				<main className="flex-1 flex flex-col overflow-y-auto">
 					<Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/register" element={<RegisterPage />} />
                         <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/verify" element={<VerifyEmailPage />} />
                         <Route 
                             path="/dashboard" 
                             element={<PrivateRoute><DashboardPage /></PrivateRoute>} 
@@ -55,7 +64,9 @@ const App = () => {
                             path="/settings/:itemType/:id" 
                             element={<PrivateRoute><SettingsPage /></PrivateRoute>} 
                         />
-                        <Route path="/*" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+                        <Route path="/*" element={
+                            <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                        } />
 					</Routes>
 				</main>
 			</div>

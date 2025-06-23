@@ -35,6 +35,7 @@ async function main() {
             data: {
                 email,
                 password: email === 'pending_user@test.com' ? null : password,
+                emailVerified: true,
             },
         });
     }

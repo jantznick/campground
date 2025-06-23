@@ -5,50 +5,65 @@ import useHierarchyStore from './useHierarchyStore';
 
 export const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
+      isLoading: false,
+      error: null,
       setUser: (user) => set({ user }),
       
       login: async (email, password) => {
-        const response = await fetch('/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Login failed');
+        set({ isLoading: true, error: null });
+        try {
+            const response = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Login failed');
+            }
+            set({ user: data, isLoading: false });
+            if (data.emailVerified) {
+                useHierarchyStore.getState().fetchHierarchy();
+            }
+            return data;
+        } catch (error) {
+            set({ isLoading: false, error: error.message });
+            throw error;
         }
-        const data = await response.json();
-        set({ user: data });
-        useHierarchyStore.getState().fetchHierarchy();
-        return data;
       },
 
-      register: async (email, password) => {
-        const response = await fetch('/api/v1/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Registration failed');
+      register: async (email, password, inviteToken) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await fetch('/api/v1/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, inviteToken }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Registration failed');
+            }
+            set({ user: data, isLoading: false });
+            // Don't fetch hierarchy here, user needs to verify first
+            return data;
+        } catch (error) {
+            set({ isLoading: false, error: error.message });
+            throw error;
         }
-        const data = await response.json();
-        set({ user: data });
-        useHierarchyStore.getState().fetchHierarchy();
-        return data;
       },
 
       logout: async () => {
+        set({ isLoading: true });
         try {
             await fetch('/api/v1/auth/logout', { method: 'POST' });
         } catch (error) {
             console.error("Logout API call failed", error);
         } finally {
             resetAllStores();
-            set({ user: null });
+            set({ user: null, isLoading: false, error: null });
         }
       },
       acceptInvitation: async (token, password) => {
@@ -63,7 +78,7 @@ export const useAuthStore = create(
         }
         const data = await response.json();
         set({ user: data });
-        useHierarchyStore.getState().fetchHierarchy();
+        // Don't fetch hierarchy here, user needs to verify first
         return data;
       },
       checkAuth: async () => {
@@ -78,6 +93,45 @@ export const useAuthStore = create(
             }
         } catch (error) {
             console.log("Error checking auth", error);
+            set({ user: null, isAuthenticated: false, isLoading: false, error: error.message });
+        }
+      },
+      verifyEmail: async (token) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch('/api/v1/auth/verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Email verification failed.');
+          }
+          set({ user: data, isLoading: false });
+          // Now that user is verified, fetch their hierarchy data
+          useHierarchyStore.getState().fetchHierarchy();
+          return data;
+        } catch (error) {
+          set({ isLoading: false, error: error.message });
+          throw error;
+        }
+      },
+      resendVerificationCode: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch('/api/v1/auth/resend-verification', {
+            method: 'POST',
+          });
+          const data = await response.json();
+           if (!response.ok) {
+            throw new Error(data.error || 'Failed to resend code.');
+          }
+          set({ isLoading: false });
+          return data;
+        } catch (error) {
+          set({ isLoading: false, error: error.message });
+          throw error;
         }
       },
       forgotPassword: async (email) => {
