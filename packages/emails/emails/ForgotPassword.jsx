@@ -56,7 +56,7 @@ const btn = {
 
 export const ForgotPassword = ({
   firstName = 'User',
-  resetLink = 'http://localhost:3000/reset-password?token=test-token',
+  resetLink = 'http://localhost:3000/reset-password-token?token=test-token',
 }) => (
   <Html>
     <Head />
