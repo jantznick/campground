@@ -6,12 +6,6 @@ set -e
 echo "Installing API dependencies..."
 npm install --workspace=api
 
-echo "Installing email dependencies..."
-npm install --workspace=@campground/emails
-
-# echo "Building email templates..."
-# npm run build -w @campground/emails
-
 echo "Running database migrations..."
 npx prisma migrate deploy --schema=packages/api/prisma/schema.prisma
 
