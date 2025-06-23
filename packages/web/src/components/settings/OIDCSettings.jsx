@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import useOIDCStore from '../../stores/useOIDCStore';
-import useCompanyStore from '../../stores/useCompanyStore';
+import useHierarchyStore from '../../stores/useHierarchyStore';
 
 export default function OIDCSettings() {
-  const { selectedCompany } = useCompanyStore();
+  const { activeOrganization } = useHierarchyStore();
   const { oidcConfig, fetchOIDCConfig, saveOIDCConfig, deleteOIDCConfig, loading, error } = useOIDCStore();
   
   const [formData, setFormData] = useState({
@@ -17,7 +17,7 @@ export default function OIDCSettings() {
     defaultRole: 'READER',
   });
 
-  const orgId = selectedCompany?.organizationId;
+  const orgId = activeOrganization?.id;
 
   const callbackUrl = useMemo(() => {
     // Construct the callback URL based on the current window's origin.
@@ -69,6 +69,7 @@ export default function OIDCSettings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+	console.log(orgId);
     const dataToSave = { ...formData };
     if (!dataToSave.clientSecret) {
       delete dataToSave.clientSecret;
