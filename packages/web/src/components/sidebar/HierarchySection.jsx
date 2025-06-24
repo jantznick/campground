@@ -4,7 +4,7 @@ import { Plus, Users, FolderKanban, Settings, ChevronsUpDown } from 'lucide-reac
 import TeamItem from './TeamItem';
 import CreateItemModal from '../CreateItemModal';
 import { ITEM_TYPES } from '../../lib/constants';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import OrganizationSwitcher from './OrganizationSwitcher';
 
 function HierarchySection({ isCollapsed }) {
@@ -14,8 +14,44 @@ function HierarchySection({ isCollapsed }) {
 	const [isOrgPopoverOpen, setOrgPopoverOpen] = useState(false);
 	const popoverRef = useRef(null);
 	const navigate = useNavigate();
+	const location = useLocation();
 
 	const showOrgSwitcher = hierarchy.length > 1;
+
+	useEffect(() => {
+		// When the location or hierarchy changes, determine which team to expand.
+		if (!location.pathname || !hierarchy || hierarchy.length === 0) {
+			return;
+		}
+
+		const pathParts = location.pathname.split('/').filter(Boolean);
+		if (pathParts.length < 2) return;
+
+		const itemTypeSlug = pathParts[0]; // "teams" or "projects"
+		const itemId = pathParts[1];
+
+		if (itemTypeSlug === 'teams') {
+			setExpandedTeamId(itemId);
+		} else if (itemTypeSlug === 'projects') {
+			// Find the project and its parent team
+			let parentTeamId = null;
+			for (const org of hierarchy) {
+				for (const company of org.companies || []) {
+					for (const team of company.teams || []) {
+						if (team.projects?.some(p => p.id === itemId)) {
+							parentTeamId = team.id;
+							break;
+						}
+					}
+					if (parentTeamId) break;
+				}
+				if (parentTeamId) break;
+			}
+			if (parentTeamId) {
+				setExpandedTeamId(parentTeamId);
+			}
+		}
+	}, [location.pathname, hierarchy]);
 
 	useEffect(() => {
 		function handleClickOutside(event) {

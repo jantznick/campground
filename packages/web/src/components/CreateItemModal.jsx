@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import useTeamStore from '../stores/useTeamStore';
 import useProjectStore from '../stores/useProjectStore';
@@ -15,6 +16,7 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const { addItem: addItemToHierarchy, refreshActiveCompany, getDisplayName } = useHierarchyStore();
+  const navigate = useNavigate();
   
   const { createTeam, isLoading: teamLoading, error: teamError } = useTeamStore();
   const { createProject, isLoading: projectLoading, error: projectError } = useProjectStore();
@@ -65,6 +67,13 @@ export default function CreateItemModal({ isOpen, onClose, type, parentId }) {
       // If a team or project was created, the active company needs to be refreshed
       if (type === ITEM_TYPES.TEAM || type === ITEM_TYPES.PROJECT) {
           refreshActiveCompany();
+      }
+      
+      // Navigate to the new item's page
+      if (type === ITEM_TYPES.TEAM) {
+        navigate(`/teams/${newItem.id}`);
+      } else if (type === ITEM_TYPES.PROJECT) {
+        navigate(`/projects/${newItem.id}`);
       }
 
       onClose();

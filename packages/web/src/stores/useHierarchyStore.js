@@ -1,5 +1,25 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
+import { enableMapSet } from 'immer';
+
+enableMapSet();
+
+// Helper to find an item and its full ancestry path
+const findItemWithAncestry = (nodes, findFn) => {
+    for (const org of nodes) {
+        if (findFn(org)) return { organization: org };
+        for (const company of org.companies || []) {
+            if (findFn(company)) return { organization: org, company };
+            for (const team of company.teams || []) {
+                if (findFn(team)) return { organization: org, company, team };
+                for (const project of team.projects || []) {
+                    if (findFn(project)) return { organization: org, company, team, project };
+                }
+            }
+        }
+    }
+    return null;
+};
 
 // Helper to find an item and its parent in the hierarchy
 const findItemAndParent = (nodes, findFn, parent = null) => {
@@ -186,6 +206,18 @@ const useHierarchyStore = create((set, get) => {
                 company.teams.push(item);
             }
         }
+        
+        // Also update the activeOrganization's company's team to include the new project
+        if (item.type === 'project' && draft.activeOrganization?.companies) {
+            for (const company of draft.activeOrganization.companies) {
+                const team = company.teams?.find(t => t.id === parentId);
+                if (team) {
+                    if (!team.projects) team.projects = [];
+                    team.projects.push(item);
+                    break; 
+                }
+            }
+        }
     })),
 
     removeItem: (itemId, itemType) => set(produce(draft => {
@@ -226,6 +258,32 @@ const useHierarchyStore = create((set, get) => {
         }
     })),
     
+    setActiveItemsFromUrl: (pathname) => {
+        const { hierarchy, setInitialActiveItems } = get();
+        if (!pathname || !hierarchy || hierarchy.length === 0) return;
+
+        const pathParts = pathname.split('/').filter(Boolean);
+        if (pathParts.length < 2) return;
+
+        const itemTypeSlug = pathParts[0];
+        const itemId = pathParts[1];
+        
+        if (itemTypeSlug !== 'teams' && itemTypeSlug !== 'projects') return;
+
+        const findFn = (node) => node.id === itemId;
+        const ancestry = findItemWithAncestry(hierarchy, findFn);
+        
+        if (ancestry) {
+            set({
+                activeOrganization: ancestry.organization,
+                activeCompany: ancestry.company,
+                accountType: ancestry.organization.accountType || 'STANDARD',
+            });
+        } else {
+            setInitialActiveItems();
+        }
+    },
+
     refreshActiveCompany: () => set(state => {
         const { activeCompany, activeOrganization } = state;
         if (!activeCompany || !activeOrganization) return {};
