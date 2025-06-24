@@ -87,31 +87,61 @@ router.post('/register', async (req, res) => {
       }
     }
     
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        emailVerified: false, // Will be verified by magic link or verification email
-        memberships: autoJoinConfig ? {
-          create: {
-            role: autoJoinConfig.role,
-            ...(autoJoinConfig.type === 'company' ? { companyId: autoJoinConfig.companyId } : {}),
-            ...(autoJoinConfig.type === 'organization' ? { organizationId: autoJoinConfig.organizationId } : {}),
-          }
-        } : { // If no auto-join, create a new org for the user
-          create: {
-            role: 'ADMIN',
-            organization: {
-              create: {
-                name: `${email.split('@')[0]}'s Organization`,
-                accountType: accountType || 'STANDARD',
-              }
+    let newUser;
+
+    if (autoJoinConfig) {
+      newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          emailVerified: false,
+          memberships: {
+            create: {
+              role: autoJoinConfig.role,
+              ...(autoJoinConfig.type === 'company' ? { companyId: autoJoinConfig.companyId } : {}),
+              ...(autoJoinConfig.type === 'organization' ? { organizationId: autoJoinConfig.organizationId } : {}),
             }
           }
-        }
-      },
-      include: { memberships: { include: { organization: true, company: true } } }
-    });
+        },
+        include: { memberships: { include: { organization: true, company: true } } }
+      });
+    } else {
+      // If no auto-join, create a new org, a default company, and then the user.
+      const newOrg = await prisma.organization.create({
+        data: {
+          name: `${email.split('@')[0]}'s Organization`,
+          accountType: accountType || 'STANDARD',
+          companies: {
+            create: { name: 'Default Company' },
+          },
+        },
+        include: {
+          companies: { select: { id: true } },
+        },
+      });
+
+      const defaultCompanyId = newOrg.companies[0].id;
+
+      await prisma.organization.update({
+        where: { id: newOrg.id },
+        data: { defaultCompanyId },
+      });
+      
+      newUser = await prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          emailVerified: false,
+          memberships: {
+            create: {
+              role: 'ADMIN',
+              organizationId: newOrg.id,
+            },
+          },
+        },
+        include: { memberships: { include: { organization: true, company: true } } }
+      });
+    }
 
     if (autoJoinConfig) {
       const entityId = autoJoinConfig.companyId || autoJoinConfig.organizationId;
