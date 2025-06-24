@@ -56,8 +56,12 @@ const AppContent = () => {
             {user && user.emailVerified && <Sidebar />}
             <main className="flex-1 flex flex-col overflow-y-auto">
                 <Routes>
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/login" element={
+                        <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                    } />
+                    <Route path="/register" element={
+                        <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                    } />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/verify" element={<VerifyEmailPage />} />
                     <Route 
