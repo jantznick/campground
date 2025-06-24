@@ -72,7 +72,7 @@ const codeText = {
 
 export function NewUserWelcome({
   firstName = 'User',
-  loginUrl = 'http://localhost:3000/login',
+  loginUrl = `${process.env.WEB_URL}/login`,
   verificationCode = '123456',
 }) {
   return (
