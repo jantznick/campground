@@ -4,7 +4,7 @@ services:
     container_name: campground-db-prod
     ports:
       # Use port 5433 on the host to avoid conflicts with local dev setup
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - campground-db-data-prod:/var/lib/postgresql/data
     env_file: ".env"
