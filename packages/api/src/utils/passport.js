@@ -34,6 +34,16 @@ export const dynamicOidcStrategy = async (req, res, next) => {
         where: { organizationId: organizationId },
       });
     }
+    // IdP-initiated flow from providers like Okta that redirect with an issuer
+    else if (req.query.iss) {
+		console.log('dynamicOidcStrategy', req.query.iss);
+      oidcConfig = await prisma.oIDCConfiguration.findUnique({
+        where: { issuer: req.query.iss }
+      });
+      if (oidcConfig) {
+        organizationId = oidcConfig.organizationId;
+      }
+    }
     // SP-initiated flow (callback): The organization ID was stored in the session.
     else if (req.session?.oidc?.organizationId) {
       organizationId = req.session.oidc.organizationId;
@@ -53,18 +63,25 @@ export const dynamicOidcStrategy = async (req, res, next) => {
 
     const decryptedSecret = decrypt(oidcConfig.clientSecret);
 
+    const strategyOptions = {
+      issuer: oidcConfig.issuer,
+      clientID: oidcConfig.clientId,
+      clientSecret: decryptedSecret,
+      callbackURL: `${process.env.API_URL}/api/v1/auth/oidc/callback`,
+      scope: 'openid profile email',
+      passReqToCallback: true,
+    };
+
+    // If the URLs are manually provided, use them. Otherwise, let the library
+    // discover them from the issuer's .well-known/openid-configuration endpoint.
+    if (oidcConfig.authorizationUrl && oidcConfig.tokenUrl && oidcConfig.userInfoUrl) {
+      strategyOptions.authorizationURL = oidcConfig.authorizationUrl;
+      strategyOptions.tokenURL = oidcConfig.tokenUrl;
+      strategyOptions.userInfoURL = oidcConfig.userInfoUrl;
+    }
+
     const strategy = new OidcStrategy(
-      {
-        issuer: oidcConfig.issuer,
-        authorizationURL: oidcConfig.authorizationUrl,
-        tokenURL: oidcConfig.tokenUrl,
-        userInfoURL: oidcConfig.userInfoUrl,
-        clientID: oidcConfig.clientId,
-        clientSecret: decryptedSecret,
-        callbackURL: `${process.env.API_URL}/api/v1/auth/oidc/callback`,
-        scope: 'openid profile email',
-        passReqToCallback: true,
-      },
+      strategyOptions,
       async (req, issuer, profile, done) => {
         try {
           const email = profile.emails && profile.emails[0] && profile.emails[0].value;

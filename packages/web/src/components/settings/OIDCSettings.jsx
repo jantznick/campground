@@ -156,6 +156,10 @@ export default function OIDCSettings() {
               </div>
             </div>
 
+            <div className="sm:col-span-6">
+                 <p className=" -mt-4 mb-4 text-xs text-white/50">If your provider supports OIDC Discovery, you can leave the URL fields below blank.</p>
+            </div>
+
             <div className="sm:col-span-3">
               <label htmlFor="clientId" className="block text-sm font-medium leading-6 text-white/80">
                 Client ID
@@ -192,28 +196,28 @@ export default function OIDCSettings() {
 
             <div className="sm:col-span-6">
               <label htmlFor="authorizationUrl" className="block text-sm font-medium leading-6 text-white/80">
-                Authorization URL
+                Authorization URL <span className="text-white/50">(Optional)</span>
               </label>
               <div className="mt-2">
-                <input type="url" name="authorizationUrl" id="authorizationUrl" value={formData.authorizationUrl} onChange={handleChange} required className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
+                <input type="url" name="authorizationUrl" id="authorizationUrl" value={formData.authorizationUrl} onChange={handleChange} required={!!(formData.tokenUrl || formData.userInfoUrl)} className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
               </div>
             </div>
 
             <div className="sm:col-span-6">
               <label htmlFor="tokenUrl" className="block text-sm font-medium leading-6 text-white/80">
-                Token URL
+                Token URL <span className="text-white/50">(Optional)</span>
               </label>
               <div className="mt-2">
-                <input type="url" name="tokenUrl" id="tokenUrl" value={formData.tokenUrl} onChange={handleChange} required className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
+                <input type="url" name="tokenUrl" id="tokenUrl" value={formData.tokenUrl} onChange={handleChange} required={!!(formData.authorizationUrl || formData.userInfoUrl)} className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
               </div>
             </div>
 
             <div className="sm:col-span-6">
               <label htmlFor="userInfoUrl" className="block text-sm font-medium leading-6 text-white/80">
-                User Info URL
+                User Info URL <span className="text-white/50">(Optional)</span>
               </label>
               <div className="mt-2">
-                <input type="url" name="userInfoUrl" id="userInfoUrl" value={formData.userInfoUrl} onChange={handleChange} required className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
+                <input type="url" name="userInfoUrl" id="userInfoUrl" value={formData.userInfoUrl} onChange={handleChange} required={!!(formData.authorizationUrl || formData.tokenUrl)} className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]" />
               </div>
             </div>
 
