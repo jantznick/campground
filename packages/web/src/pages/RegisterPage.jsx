@@ -89,7 +89,7 @@ const RegisterPage = () => {
                 setMessage(result.message);
                 // Maybe clear the form or show a persistent success state
             } else {
-                navigate('/dashboard');
+          navigate('/dashboard');
             }
         } catch (err) {
             setError(err.message);
@@ -107,9 +107,9 @@ const RegisterPage = () => {
             if (useMagicLink) {
                 setMessage(result.message);
             } else {
-                navigate('/dashboard');
+            navigate('/dashboard');
             }
-        } catch (err) {
+      } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Folder, Settings } from 'lucide-react';
+import { Folder, Settings, LockIcon } from 'lucide-react';
 import useHierarchyStore from '../../stores/useHierarchyStore';
 
 function ProjectItem({ project, isCollapsed }) {
@@ -27,6 +27,7 @@ function ProjectItem({ project, isCollapsed }) {
                     {!isCollapsed && (
                         <>
                             <span className="truncate flex-1 text-left ml-2">{project.name}</span>
+                            {!project.isMember && <LockIcon className="w-4 h-4 text-gray-400 ml-2" />}
                             <Link to={`/settings/project/${project.id}`} className="hidden group-hover:block ml-auto" onClick={(e) => e.stopPropagation()}>
                                 <Settings className="w-4 h-4 text-gray-400 hover:text-white" />
                             </Link>

@@ -38,7 +38,7 @@ async function getEffectiveMembersForUsers(resourceType, resourceId, userIds = n
         where: whereClause,
         include: {
             user: {
-                select: { id: true, email: true, password: true },
+                select: { id: true, email: true, emailVerified: true },
             },
             organization: { select: { name: true } },
             company: { select: { name: true } },

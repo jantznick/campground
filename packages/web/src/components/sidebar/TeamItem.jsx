@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Users, FolderKanban, Plus, Settings } from 'lucide-react';
+import { Users, FolderKanban, Plus, Settings, LockIcon } from 'lucide-react';
 import useHierarchyStore from '../../stores/useHierarchyStore';
 import { ITEM_TYPES } from '../../lib/constants';
 import ProjectItem from './ProjectItem';
@@ -38,6 +38,7 @@ function TeamItem({ team, isExpanded, onToggle, onCreateItem, isCollapsed }) {
                     {!isCollapsed && (
                         <>
                             <span className="truncate flex-1 text-left ml-2">{team.name}</span>
+                            {!team.isMember && <LockIcon className="w-4 h-4 text-gray-400 ml-2" />}
                             <Link to={`/settings/team/${team.id}`} className="hidden group-hover:block ml-auto" onClick={(e) => e.stopPropagation()}>
                                 <Settings className="w-4 h-4 text-gray-400 hover:text-white" />
                             </Link>

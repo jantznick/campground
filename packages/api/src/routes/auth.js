@@ -69,7 +69,7 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = useMagicLink ? null : await bcrypt.hash(password, saltRounds);
-    
+
     // Auto-join & Standard Registration Logic
     const domain = email.split('@')[1];
     let autoJoinConfig = null;
@@ -82,7 +82,7 @@ router.post('/register', async (req, res) => {
       else {
           const orgDomain = await prisma.autoJoinDomain.findFirst({
               where: { domain: domain.toLowerCase(), organizationId: { not: null }, status: 'VERIFIED' }
-          });
+      });
           if (orgDomain) autoJoinConfig = { type: 'organization', ...orgDomain };
       }
     }
@@ -108,7 +108,7 @@ router.post('/register', async (req, res) => {
     } else {
       // If no auto-join, create a new org, a default company, and then the user.
       const newOrg = await prisma.organization.create({
-        data: {
+            data: {
           name: `${email.split('@')[0]}'s Organization`,
           accountType: accountType || 'STANDARD',
           companies: {
@@ -117,8 +117,8 @@ router.post('/register', async (req, res) => {
         },
         include: {
           companies: { select: { id: true } },
-        },
-      });
+            },
+          });
 
       const defaultCompanyId = newOrg.companies[0].id;
 
@@ -400,23 +400,23 @@ router.post('/accept-invitation', async (req, res) => {
         if (!invitation || !invitation.user) {
             return res.status(400).json({ error: 'Invalid or expired invitation token.' });
         }
-        
+
         const userToUpdate = invitation.user;
 
         if (useMagicLink) {
             await prisma.user.update({
                 where: { id: userToUpdate.id },
                 data: { emailVerified: true },
-            });
+        });
             await sendMagicLink(userToUpdate);
-            await prisma.invitation.delete({ where: { id: invitation.id } });
+        await prisma.invitation.delete({ where: { id: invitation.id } });
             return res.json({ message: 'Your account has been activated. A magic login link has been sent to your email.' });
         } else {
             const hashedPassword = await bcrypt.hash(password, 10);
             const updatedUser = await prisma.user.update({
                 where: { id: userToUpdate.id },
                 data: { password: hashedPassword, emailVerified: true },
-            });
+        });
             await prisma.invitation.delete({ where: { id: invitation.id } });
             req.login(updatedUser, (err) => {
                 if (err) {
@@ -457,13 +457,13 @@ router.get('/check-oidc', async (req, res) => {
     if (!autoJoinDomain?.organization?.oidcConfiguration) {
       return res.json({ ssoEnabled: false });
     }
-    
+
     const { oidcConfiguration, id } = autoJoinDomain.organization;
-    return res.json({
-      ssoEnabled: true,
+      return res.json({
+        ssoEnabled: true,
       buttonText: oidcConfiguration.buttonText || 'Login with SSO',
       organizationId: id
-    });
+      });
   } catch (error) {
     console.error('Error checking OIDC status:', error);
     res.status(500).json({ error: 'Server error checking OIDC status.' });

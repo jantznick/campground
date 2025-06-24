@@ -92,11 +92,20 @@ router.get('/', async (req, res) => {
 
         // 7. Build the final hierarchy. Because we only fetched exactly what's needed,
         // this process automatically excludes any items (like sibling teams) the user shouldn't see.
-        const projectMap = new Map(allProjects.map(p => [p.id, { ...p, type: 'project' }]));
+        const projectMap = new Map(allProjects.map(p => [p.id, { 
+            ...p, 
+            type: 'project',
+            isMember: directProjectIds.has(p.id) 
+        }]));
         
         const teamMap = new Map(allTeams.map(t => {
             const projects = allProjects.filter(p => p.teamId === t.id);
-            return [t.id, { ...t, type: 'team', projects: projects.map(p => projectMap.get(p.id)).filter(Boolean) }];
+            return [t.id, { 
+                ...t, 
+                type: 'team', 
+                projects: projects.map(p => projectMap.get(p.id)).filter(Boolean),
+                isMember: directTeamIds.has(t.id)
+            }];
         }));
 
         const companyMap = new Map(allCompanies.map(c => {

@@ -110,7 +110,7 @@ const LoginPage = () => {
             setLoading(false);
         }
     };
-    
+
     const toggleResetMode = (e) => {
         if (e) e.preventDefault();
         setIsResetMode(!isResetMode);

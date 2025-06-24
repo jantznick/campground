@@ -74,15 +74,15 @@ export const useAuthStore = create(
       acceptInvitation: async (token, password, { useMagicLink = false } = {}) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await fetch('/api/v1/auth/accept-invitation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+        const response = await fetch('/api/v1/auth/accept-invitation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token, password, useMagicLink }),
-            });
+        });
             const data = await response.json();
-            if (!response.ok) {
+        if (!response.ok) {
                 throw new Error(data.error || 'Failed to accept invitation');
-            }
+        }
             // If using magic link, don't log in, just return the success message
             if (useMagicLink) {
                 set({ isLoading: false });
