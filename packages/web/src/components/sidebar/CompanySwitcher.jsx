@@ -63,9 +63,30 @@ const CompanySwitcher = ({ isCollapsed }) => {
   if (!activeCompany && allCompanies.length === 0) {
     return (
         <div className="p-4 border-t border-b border-white/10">
-             <div className="px-4 py-2 text-sm text-center text-[var(--vanilla)]/60">
-                {isCollapsed ? '' : `No ${getDisplayName('company', 'plural')} found.`}
-             </div>
+             {isAdding ? (
+                <form onSubmit={handleCreateCompany} className="flex items-center gap-2 px-2">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newCompanyName}
+                    onChange={(e) => setNewCompanyName(e.target.value)}
+                    placeholder={`New ${getDisplayName('company', 'singular')} name...`}
+                    className="flex-1 bg-transparent text-white text-sm placeholder-white/40 focus:outline-none"
+                    onBlur={() => { if(!newCompanyName) setIsAdding(false); }}
+                  />
+                  <button type="submit" className="p-1 text-[var(--orange-wheel)] hover:text-white">
+                    <Check size={16} />
+                  </button>
+                </form>
+              ) : (
+                <button
+                    onClick={handleAddClick}
+                    className="w-full text-left flex items-center gap-2 p-2 rounded-md text-sm text-white/80 hover:bg-white/10"
+                >
+                    <Plus size={16} className="text-[var(--orange-wheel)]" />
+                    <span className="truncate">Create a {getDisplayName('company', 'singular')}</span>
+                </button>
+              )}
         </div>
     );
   }

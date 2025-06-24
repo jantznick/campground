@@ -58,13 +58,25 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Name and companyId are required.' });
     }
 
-    // Authorization: User must be ADMIN or EDITOR of the parent company.
-    const canCreate = await hasPermission(req.user, ['ADMIN', 'EDITOR'], 'company', companyId);
-    if (!canCreate) {
-        return res.status(403).json({ error: 'You are not authorized to create a team in this company.' });
-    }
-    
     try {
+        // First, get the company to find its parent organization
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { organizationId: true }
+        });
+
+        if (!company) {
+            return res.status(404).json({ error: 'Company not found.' });
+        }
+
+        // Authorization: User must be ADMIN/EDITOR of the company OR an ADMIN of the parent organization.
+        const canCreateInCompany = await hasPermission(req.user, ['ADMIN', 'EDITOR'], 'company', companyId);
+        const isOrgAdmin = await hasPermission(req.user, 'ADMIN', 'organization', company.organizationId);
+
+        if (!canCreateInCompany && !isOrgAdmin) {
+            return res.status(403).json({ error: 'You are not authorized to create a team in this company.' });
+        }
+    
         const newTeam = await prisma.team.create({
             data: { name, description, companyId }
         });

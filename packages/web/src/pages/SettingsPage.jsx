@@ -110,8 +110,8 @@ const SettingsPage = () => {
     const handleUpgrade = async () => {
         if (!id) return;
         try {
-            await upgradeOrganization(id);
-            await fetchHierarchy();
+            const updatedOrg = await upgradeOrganization(id);
+            updateHierarchyItem(updatedOrg);
             setSuccess('Successfully upgraded to Enterprise plan!');
             setTimeout(() => setSuccess(null), 4000);
         } catch (err) {
@@ -127,8 +127,8 @@ const SettingsPage = () => {
         setError(null);
         setSuccess(null);
         try {
-            await downgradeOrganization(id, companyToKeep);
-            await fetchHierarchy(); 
+            const updatedOrg = await downgradeOrganization(id, companyToKeep);
+            updateHierarchyItem(updatedOrg);
             setIsDowngrading(false);
             setSuccess('Successfully downgraded to Standard plan.');
              setTimeout(() => setSuccess(null), 4000);

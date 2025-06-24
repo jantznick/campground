@@ -97,9 +97,13 @@ function HierarchySection({ isCollapsed }) {
 			{/* Teams Section */}
 			<div className={`flex items-center justify-between px-3 mb-2 transition-all duration-300 ${isCollapsed ? 'opacity-0 h-0' : 'opacity-100 h-auto'}`}>
 				<span className="uppercase text-xs tracking-wider text-[var(--vanilla)]/60 font-semibold">{getDisplayName('team', 'plural')}</span>
-				{activeCompany && (
+				{(activeCompany || activeOrganization.accountType === 'STANDARD') && (
 					<button
-						onClick={() => handleCreateItem(ITEM_TYPES.TEAM, activeCompany.id)}
+						onClick={() => {
+							if (activeCompany) {
+								handleCreateItem(ITEM_TYPES.TEAM, activeCompany.id);
+							}
+						}}
 						className="p-1 rounded-lg hover:bg-white/10 text-[var(--vanilla)]/60 hover:text-[var(--xanthous)]"
 						title={`Add new ${getDisplayName('team', 'singular')}`}
 					>
@@ -108,7 +112,7 @@ function HierarchySection({ isCollapsed }) {
 				)}
 			</div>
 			<ul className="space-y-1">
-				{activeCompany && activeCompany.teams && activeCompany.teams.length > 0 ? (
+				{activeCompany?.teams && activeCompany.teams.length > 0 ? (
 					activeCompany.teams.map(team => (
 						<TeamItem
 							key={team.id}
@@ -121,7 +125,10 @@ function HierarchySection({ isCollapsed }) {
 					))
 				) : (
 					<li className={`px-3 py-1 text-xs text-[var(--vanilla)]/60 ${isCollapsed ? 'hidden' : 'block'}`}>
-						{activeCompany ? `No ${getDisplayName('team', 'plural')} yet.` : `Select a ${getDisplayName('company', 'singular')} to see ${getDisplayName('team', 'plural')}.`}
+						{activeCompany 
+							? `No ${getDisplayName('team', 'plural')} yet.` 
+							: `Select a ${getDisplayName('company', 'singular')} to see ${getDisplayName('team', 'plural')}.`
+						}
 					</li>
 				)}
 			</ul>

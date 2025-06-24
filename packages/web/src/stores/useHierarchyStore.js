@@ -152,7 +152,7 @@ const useHierarchyStore = create((set, get) => {
 
         const findAndAdd = (nodes) => {
             for (const node of nodes) {
-                if (node.id === parentId && node.type === parentType) {
+                if (node.id === parentId) {
                     switch(item.type) {
                         case 'company':
                             if (!node.companies) node.companies = [];
@@ -177,6 +177,15 @@ const useHierarchyStore = create((set, get) => {
         };
 
         findAndAdd(draft.hierarchy);
+
+        // Also update the activeOrganization's company to include the new team
+        if (item.type === 'team' && draft.activeOrganization?.companies) {
+            const company = draft.activeOrganization.companies.find(c => c.id === parentId);
+            if (company) {
+                if (!company.teams) company.teams = [];
+                company.teams.push(item);
+            }
+        }
     })),
 
     removeItem: (itemId, itemType) => set(produce(draft => {
@@ -188,25 +197,32 @@ const useHierarchyStore = create((set, get) => {
 
     updateItem: (updatedItem) => set(produce(draft => {
         mutator(draft.hierarchy,
-            node => node.id === updatedItem.id && node.type === updatedItem.type,
+            node => node.id === updatedItem.id,
             (nodes, index) => {
                 nodes[index] = { ...nodes[index], ...updatedItem };
             }
         );
 
         // Also update selectedItem if it's the one being changed
-        const selected = get().selectedItem;
-        if (selected && selected.id === updatedItem.id && selected.type === updatedItem.type) {
-            set({ selectedItem: { ...selected, ...updatedItem }});
+        if (draft.selectedItem && draft.selectedItem.id === updatedItem.id) {
+            draft.selectedItem = { ...draft.selectedItem, ...updatedItem };
         }
         // Also update active items if they are the one being changed
-        const activeOrg = get().activeOrganization;
-        if (activeOrg && activeOrg.id === updatedItem.id && activeOrg.type === updatedItem.type) {
-            set({ activeOrganization: { ...activeOrg, ...updatedItem }});
+        if (draft.activeOrganization && draft.activeOrganization.id === updatedItem.id) {
+            const newActiveOrg = { ...draft.activeOrganization, ...updatedItem };
+            draft.activeOrganization = newActiveOrg;
+            
+            if (updatedItem.accountType) {
+                draft.accountType = updatedItem.accountType;
+            }
+
+            // If the plan is now standard, ensure the active company is set to the default.
+            if (newActiveOrg.accountType === 'STANDARD' && newActiveOrg.defaultCompanyId) {
+                draft.activeCompany = newActiveOrg.companies?.find(c => c.id === newActiveOrg.defaultCompanyId) || null;
+            }
         }
-        const activeComp = get().activeCompany;
-        if (activeComp && activeComp.id === updatedItem.id && activeComp.type === updatedItem.type) {
-            set({ activeCompany: { ...activeComp, ...updatedItem }});
+        if (draft.activeCompany && draft.activeCompany.id === updatedItem.id) {
+            draft.activeCompany = { ...draft.activeCompany, ...updatedItem };
         }
     })),
     
