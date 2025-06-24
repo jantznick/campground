@@ -49,7 +49,7 @@ router.post('/resend', async (req, res) => {
         const resourceType = organizationId ? 'organization' : companyId ? 'company' : teamId ? 'team' : 'project';
         const resourceId = organizationId || companyId || teamId || projectId;
 
-        const canManage = await hasPermission(req.user, 'ADMIN', resourceType, resourceId);
+        const canManage = await hasPermission(req.user, ['ADMIN', 'EDITOR', 'READER'], resourceType, resourceId);
         if (!canManage) {
             return res.status(403).json({ error: 'You are not authorized to manage members for this resource.' });
         }
@@ -81,7 +81,10 @@ router.post('/resend', async (req, res) => {
           }),
         });
 
-        res.status(200).json({ message: "Invitation sent successfully" });
+        res.status(200).json({ 
+          message: "Invitation sent successfully",
+          invitationLink: invitationLink 
+        });
 
     } catch (error) {
         console.error('Resend invitation error:', error);

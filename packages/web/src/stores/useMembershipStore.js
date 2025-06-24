@@ -96,6 +96,7 @@ const useMembershipStore = create((set) => {
 
         resendInvitation: async (userId) => {
             set({ loading: true, error: null, invitationLink: null });
+			console.log('resendInvitation', userId);
             try {
                 const response = await fetch('/api/v1/invitations/resend', {
                     method: 'POST',

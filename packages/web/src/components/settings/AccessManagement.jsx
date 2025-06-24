@@ -90,8 +90,9 @@ const AccessManagement = ({ resourceType, resourceId }) => {
         setEditingRole('');
     };
 
-    const handleCopyToClipboard = () => {
-        navigator.clipboard.writeText(invitationLink);
+    const handleCopyToClipboard = (text) => {
+		console.log('handleCopyToClipboard', text);
+        navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -134,18 +135,20 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                 {error && <div className="text-red-400 mb-4">{error}</div>}
 
                 {invitationLink && (
-                    <div className="bg-blue-900/50 border border-blue-400/50 text-blue-300 px-4 py-3 rounded-lg relative mb-6" role="alert">
-                        <strong className="font-bold">Invitation Link Generated!</strong>
-                        <p className="block sm:inline">Share this link with the new user to complete their registration.</p>
-                        <div className="flex items-center mt-2 bg-black/30 p-2 rounded-md">
-                            <input type="text" value={invitationLink} readOnly className="bg-transparent text-white/80 w-full outline-none" />
-                            <button onClick={handleCopyToClipboard} className="ml-2 p-1 text-gray-300 hover:text-white">
-                                {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
-                            </button>
+                    <div className="bg-blue-900/50 border border-blue-400/50 text-blue-300 px-4 py-3 rounded-lg flex items-start justify-between gap-4 mb-6" role="alert">
+                        <div className="flex-grow">
+                            <strong className="font-bold">Invitation Link Generated!</strong>
+                            <p className="block sm:inline text-blue-200">Share this link with the new user to complete their registration.</p>
+                            <div className="flex items-center mt-2 bg-black/30 p-2 rounded-md">
+                                <input type="text" value={invitationLink} readOnly className="bg-transparent text-white/80 w-full outline-none" />
+                                <button onClick={() => handleCopyToClipboard(invitationLink)} className="ml-2 p-1 text-gray-300 hover:text-white" title="Copy to clipboard">
+                                    {copied ? <Check size={18} className="text-green-400" /> : <Copy size={18} />}
+                                </button>
+                            </div>
                         </div>
-                         <span className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer" onClick={() => useMembershipStore.setState({ invitationLink: null })}>
+                         <button className="p-1 text-blue-300 hover:text-white flex-shrink-0" onClick={() => useMembershipStore.setState({ invitationLink: null })} title="Close">
                             <X size={18} />
-                        </span>
+                        </button>
                     </div>
                 )}
 
@@ -201,7 +204,7 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                     <button
                                         onClick={() => resendInvitation(member.user.id)}
                                         className="text-gray-300 hover:text-[var(--orange-wheel)] transition-colors flex items-center gap-2 text-sm"
-                                        disabled={loading || !isAdmin}
+                                        disabled={loading}
                                     >
                                         <Send size={16} /> Resend Invite
                                     </button>
