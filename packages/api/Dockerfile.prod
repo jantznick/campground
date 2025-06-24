@@ -1,0 +1,57 @@
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Set NODE_ENV to production
+ENV NODE_ENV=production
+
+# First, copy only the package management files to leverage Docker cache
+COPY package.json package-lock.json* ./
+
+# Then, copy the package.json files for each workspace
+COPY packages/api/package.json ./packages/api/
+COPY packages/web/package.json ./packages/web/
+COPY packages/emails/package.json ./packages/emails/
+
+
+# Install production dependencies for the entire monorepo
+# Using --omit=dev ensures devDependencies are not installed
+RUN npm install --omit=dev
+
+# Copy the rest of the source code
+COPY . .
+
+# Generate the Prisma client
+RUN npx prisma generate --schema=./packages/api/prisma/schema.prisma
+
+# Stage 2: Create the final production image
+FROM node:20-alpine
+
+# Prisma needs openssl to connect to the database
+RUN apk add --no-cache openssl
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Copy package management files from builder
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/packages/api/package.json ./packages/api/
+
+# Copy installed production node_modules from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/api/node_modules* ./packages/api/node_modules
+
+# Copy the API source code and Prisma schema from builder
+COPY --from=builder /app/packages/api ./packages/api
+
+# Copy the generated Prisma client from the builder stage
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+
+# Expose the port the app runs on
+EXPOSE 3001
+
+# The command to run the application
+CMD ["node", "packages/api/src/index.js"] 

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Campground - Demo Guide</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<script>
+			tailwind.config = {
+				theme: {
+					extend: {
+						fontFamily: {
+							sans: ['Inter', 'system-ui', 'sans-serif'],
+							display: ['Outfit', 'system-ui', 'sans-serif'],
+						},
+						colors: {
+							'prussian-blue': '#003049',
+							'fire-engine-red': '#d62828',
+							'orange-wheel': '#f77f00',
+							xanthous: '#fcbf49',
+							vanilla: '#eae2b7',
+							primary: {
+								50: '#fefce8',
+								100: '#fef9c3',
+								200: '#fef08a',
+								300: '#fde047',
+								400: '#facc15',
+								500: '#eab308',
+								600: '#ca8a04',
+								700: '#a16207',
+								800: '#854d0e',
+								900: '#713f12',
+							},
+						},
+					},
+				},
+			};
+		</script>
+		<style>
+			body {
+				font-family: 'Inter', sans-serif;
+			}
+			:root {
+				--prussian-blue: #003049;
+				--fire-engine-red: #d62828;
+				--orange-wheel: #f77f00;
+				--xanthous: #fcbf49;
+				--vanilla: #eae2b7;
+			}
+			.persona-card {
+				background-color: white;
+				border: 1px solid #e2e8f0;
+				border-radius: 0.75rem;
+				padding: 1.5rem;
+				transition: all 0.2s ease-in-out;
+				display: flex;
+				flex-direction: column;
+				overflow-wrap:break-word;
+			}
+			.persona-card:hover {
+				transform: translateY(-4px);
+				box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+			}
+			.tag {
+				display: inline-block;
+				padding: 0.25rem 0.75rem;
+				border-radius: 0.5em;
+				font-weight: 500;
+				font-size: 0.75rem;
+			}
+		</style>
+	</head>
+	<body class="bg-gray-50 font-light text-gray-800 antialiased">
+		<!-- Header -->
+		<header
+			class="sticky w-full top-0 z-50 bg-prussian-blue/95 backdrop-blur-md border-b border-prussian-blue/20"
+		>
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex justify-between items-center h-16">
+					<!-- Logo -->
+					<a href="/" class="flex items-center">
+						<img src="../logo.png" alt="Campground" class="h-8 w-auto" />
+						<span class="ml-2 text-xl font-display font-light text-vanilla">Campground</span>
+					</a>
+
+					<!-- Desktop Navigation -->
+					<div class="hidden md:flex items-center">
+						<nav class="flex space-x-8">
+							<a
+								href="/#features"
+								class="text-vanilla hover:text-xanthous font-light tracking-wide transition-colors duration-200"
+								>Features</a
+							>
+							<a
+								href="/#tech-stack"
+								class="text-vanilla hover:text-xanthous font-light tracking-wide transition-colors duration-200"
+								>Tech Stack</a
+							>
+							<a
+								href="/#getting-started"
+								class="text-vanilla hover:text-xanthous font-light tracking-wide transition-colors duration-200"
+								>Getting Started</a
+							>
+						</nav>
+						<a
+							href="https://github.com/jantznick/campground"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="ml-6 text-vanilla hover:text-xanthous transition-colors"
+						>
+							<span class="sr-only">GitHub</span>
+							<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+								<path
+									d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+								/>
+							</svg>
+						</a>
+					</div>
+
+					<!-- Mobile menu button -->
+					<div class="flex items-center md:hidden">
+						<button id="mobile-menu-button" type="button" class="inline-flex items-center justify-center rounded-md p-2 text-vanilla hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white" aria-controls="mobile-menu" aria-expanded="false">
+							<span class="sr-only">Open main menu</span>
+							<svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+							</svg>
+							<svg class="hidden h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+			<!-- Mobile menu, show/hide based on menu state. -->
+			<div class="md:hidden hidden" id="mobile-menu">
+				<div class="space-y-1 px-2 pt-2 pb-3 sm:px-3">
+					<a href="/#features" class="block rounded-md px-3 py-2 text-base font-light text-vanilla hover:bg-white/10">Features</a>
+					<a href="/#tech-stack" class="block rounded-md px-3 py-2 text-base font-light text-vanilla hover:bg-white/10">Tech Stack</a>
+					<a href="/#getting-started" class="block rounded-md px-3 py-2 text-base font-light text-vanilla hover:bg-white/10">Getting Started</a>
+					<a href="https://github.com/jantznick/campground" target="_blank" rel="noopener noreferrer" class="block rounded-md px-3 py-2 text-base font-light text-vanilla hover:bg-white/10">GitHub</a>
+				</div>
+			</div>
+		</header>
+
+		<main class="pt-24 pb-12">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="text-center mb-16">
+					<h1 class="text-4xl md:text-5xl font-display font-light text-gray-900 mb-6 leading-relaxed tracking-wide">
+						Live Demo Guide
+					</h1>
+					<p class="text-xl text-gray-600 font-light leading-relaxed tracking-wide max-w-3xl mx-auto">
+						This is an interactive demo of a powerful multi-tenant RBAC system. The database is seeded with a
+						complex hierarchy of organizations, users, and permissions. Log in as the different personas below
+						to explore what they can see and do.
+					</p>
+					<div class="mt-8">
+						<a
+							href="https://demo.campground.nickjantz.com"
+							class="bg-orange-wheel hover:bg-orange-wheel/90 text-white px-8 py-4 rounded-lg font-light text-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+						>
+							Go to Demo Application
+						</a>
+					</div>
+				</div>
+
+				<div class="bg-white p-8 rounded-xl shadow-md border border-gray-200">
+					<h2 class="text-3xl font-display font-light text-center text-gray-800 mb-2">Demo Personas</h2>
+					<p class="text-center text-gray-500 mb-8 font-light">
+						Use the credentials below to explore different roles and permissions.
+						<br />
+						Universal Password: <span class="font-mono bg-gray-200 p-1 rounded">password123</span>
+					</p>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+						<!-- Org Admin -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Organization Admin</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">global_admin@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								Top-level admin for the "TechCorp" enterprise. Can see and manage all subsidiary
+								companies, teams, and projects within the organization.
+							</p>
+							<span class="tag bg-red-100 text-red-800">ENTERPRISE</span>
+						</div>
+
+						<!-- Company Admin -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Company Admin</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">cloud_services_admin@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								Admin for the "Cloud Services" company inside TechCorp. Can manage their own company and
+								its teams, but cannot see the sibling "Analytics Inc." company.
+							</p>
+							<span class="tag bg-red-100 text-red-800">ENTERPRISE</span>
+						</div>
+
+						<!-- Team Admin -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Team Admin</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">devops_admin@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								Admin of just the "DevOps" team. Can manage projects and members within their team, but
+								has no special rights over the parent company or other teams.
+							</p>
+							<span class="tag bg-red-100 text-red-800">ENTERPRISE</span>
+						</div>
+
+						<!-- Cross-Company Manager -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Cross-Company Manager</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">cross_company_manager@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								A user with surgical permissions across company lines. They are an EDITOR of the
+								"Compute" team (in Cloud Services) and a READER of the "BI" team (in Analytics Inc.).
+							</p>
+							<span class="tag bg-green-100 text-green-800">COMPLEX</span>
+						</div>
+
+						<!-- Lead Designer -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Lead Designer</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">lead_designer@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								Demonstrates flexible permissions. They are an ADMIN of the "E-Commerce" team, but only
+								a READER of its parent company, "Web UX". They also have EDITOR access to a project in a
+								completely different company.
+							</p>
+							<span class="tag bg-pink-100 text-pink-800">FLEXIBLE</span>
+						</div>
+
+						<!-- Multi-Role Developer -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Multi-Role Developer</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">multirole_dev@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								A developer in the "SoloDev" organization who is an EDITOR on both the "Mobile" and
+								"Game Dev" teams, and a READER of a project in the "API" team.
+							</p>
+							<span class="tag bg-blue-100 text-blue-800">STANDARD</span>
+						</div>
+
+						<!-- External Auditor -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">External Auditor</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">external_auditor@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								A third-party user who has been granted read-only access to two specific companies
+								("Analytics Inc." and "Mobile UI") across two different organizations.
+							</p>
+							<span class="tag bg-gray-100 text-gray-800">MULTI-ORG</span>
+						</div>
+
+						<!-- Guest Client -->
+						<div class="persona-card">
+							<h3 class="text-xl font-display font-light mb-2">Guest Client</h3>
+							<p class="font-mono text-sm text-gray-500 mb-3">guest_client@test.com</p>
+							<p class="text-gray-600 text-sm mb-4 flex-grow font-light">
+								The most restricted user. Has read-only access to a single project ("E-Commerce Project
+								1") and nothing else. Perfect for demonstrating granular guest access.
+							</p>
+							<span class="tag bg-yellow-100 text-yellow-800">GUEST</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<!-- Footer -->
+		<footer class="bg-gray-900 text-gray-400 py-12">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="text-center">
+					<div class="flex items-center justify-center mb-6">
+						<a href="/" class="flex items-center">
+							<img src="../logo.png" alt="Campground" class="h-8 w-auto" />
+							<span class="ml-2 text-xl font-display font-light text-white">Campground</span>
+						</a>
+					</div>
+					<p class="text-lg font-light leading-relaxed tracking-wide mb-6">
+						The database for this demo environment is automatically reset every hour.
+					</p>
+					<div class="flex justify-center space-x-6">
+						<a
+							href="https://github.com/jantznick/campground"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-gray-400 hover:text-white transition-colors"
+						>
+							<span class="sr-only">GitHub</span>
+							<svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+								<path
+									d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+								/>
+							</svg>
+						</a>
+					</div>
+					<div class="mt-8 pt-8 border-t border-gray-800">
+						<p class="text-sm font-light leading-relaxed tracking-wide">
+							<a href="/" class="text-gray-400 hover:text-vanilla">Back to main page</a>
+						</p>
+					</div>
+				</div>
+			</div>
+		</footer>
+		<script>
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const openIcon = mobileMenuButton.querySelector('svg:first-of-type');
+            const closeIcon = mobileMenuButton.querySelector('svg:last-of-type');
+
+            mobileMenuButton.addEventListener('click', () => {
+                const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+                mobileMenuButton.setAttribute('aria-expanded', !isExpanded);
+                mobileMenu.classList.toggle('hidden');
+                openIcon.classList.toggle('hidden');
+                closeIcon.classList.toggle('hidden');
+            });
+        </script>
+	</body>
+</html> 
