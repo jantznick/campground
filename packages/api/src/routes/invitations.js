@@ -32,7 +32,7 @@ router.post('/resend', async (req, res) => {
             return res.status(404).json({ error: 'A pending invitation for this user was not found.' });
         }
 
-		if (user.password !== null) {
+		if (user && user.emailVerified) {
 			return res.status(400).json({ error: 'This user has already been registered.' });
 		}
         

@@ -32,8 +32,11 @@ const AuthForm = ({
     buttonText,
     footerContent,
     domainCheckMessage,
+    onMagicLinkClick,
     verificationCode,
     setVerificationCode,
+    useMagicLink,
+    setUseMagicLink,
 }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,7 +86,7 @@ const AuthForm = ({
                                 {domainCheckMessage}
                             </div>
                         )}
-                        {password !== undefined && setPassword !== undefined && (
+                        {password !== undefined && setPassword !== undefined && (!useMagicLink) && (
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                                     <LockIcon className="h-5 w-5 text-gray-500" />
@@ -100,6 +103,45 @@ const AuthForm = ({
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
                             </div>
+                        )}
+                        {formType === 'register' && (
+                            <div className="flex items-center justify-center">
+                                <div className="flex items-center">
+                                    <input
+                                        id="use-magic-link"
+                                        name="use-magic-link"
+                                        type="checkbox"
+                                        checked={useMagicLink}
+                                        onChange={(e) => setUseMagicLink(e.target.checked)}
+                                        className="h-4 w-4 text-[var(--orange-wheel)] bg-gray-700 border-gray-600 rounded focus:ring-[var(--orange-wheel)]"
+                                    />
+                                    <label htmlFor="use-magic-link" className="ml-2 block text-sm text-gray-300">
+                                        Sign up with a login link instead of a password
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                        {formType === 'login' && password !== undefined && (
+                            <>
+                                <div className="relative flex items-center justify-center">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-gray-600" />
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-2 bg-[var(--prussian-blue)] text-gray-400">or</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={onMagicLinkClick}
+                                        disabled={loading}
+                                        className="w-full flex justify-center py-2 px-4 border border-gray-500 text-sm font-medium rounded-md text-white bg-transparent hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white disabled:opacity-50"
+                                    >
+                                        Email me a login link
+                                    </button>
+                                </div>
+                            </>
                         )}
                         {formType === 'verify-email' && (
                             <div className="relative">

@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import Sidebar from './components/sidebar/Sidebar';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import MagicLinkVerifyPage from './pages/MagicLinkVerifyPage';
 
 const PrivateRoute = ({ children }) => {
     const { user } = useAuthStore();
@@ -57,10 +58,11 @@ const AppContent = () => {
             <main className="flex-1 flex flex-col overflow-y-auto">
                 <Routes>
                     <Route path="/login" element={
-                        <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                        !user ? <LoginPage /> : <Navigate to={!user.emailVerified ? "/verify" : "/dashboard"} />
                     } />
+                    <Route path="/login/verify" element={<MagicLinkVerifyPage />} />
                     <Route path="/register" element={
-                        <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                        !user ? <RegisterPage /> : <Navigate to={!user.emailVerified ? "/verify" : "/dashboard"} />
                     } />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/verify" element={<VerifyEmailPage />} />
@@ -81,7 +83,7 @@ const AppContent = () => {
                         element={<PrivateRoute><SettingsPage /></PrivateRoute>} 
                     />
                     <Route path="/*" element={
-                        <Navigate to={!user ? "/login" : !user.emailVerified ? "/verify" : "/dashboard"} />
+                        !user ? <Navigate to="/login" /> : <Navigate to={!user.emailVerified ? "/verify" : "/dashboard"} />
                     } />
                 </Routes>
             </main>

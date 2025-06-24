@@ -34,17 +34,22 @@ export const useAuthStore = create(
         }
       },
 
-      register: async (email, password, inviteToken) => {
+      register: async (email, password, { useMagicLink = false } = {}) => {
         set({ isLoading: true, error: null });
         try {
             const response = await fetch('/api/v1/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, inviteToken }),
+                body: JSON.stringify({ email, password, useMagicLink }),
             });
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || 'Registration failed');
+            }
+            // If using magic link, don't set user, just return the message
+            if (useMagicLink) {
+                set({ isLoading: false });
+                return data;
             }
             set({ user: data, isLoading: false });
             // Don't fetch hierarchy here, user needs to verify first
@@ -66,20 +71,31 @@ export const useAuthStore = create(
             set({ user: null, isLoading: false, error: null });
         }
       },
-      acceptInvitation: async (token, password) => {
-        const response = await fetch('/api/v1/auth/accept-invitation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, password }),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to accept invitation');
+      acceptInvitation: async (token, password, { useMagicLink = false } = {}) => {
+        set({ isLoading: true, error: null });
+        try {
+            const response = await fetch('/api/v1/auth/accept-invitation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, password, useMagicLink }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to accept invitation');
+            }
+            // If using magic link, don't log in, just return the success message
+            if (useMagicLink) {
+                set({ isLoading: false });
+                return data;
+            }
+            // Otherwise, log the user in
+            set({ user: data, isLoading: false });
+            useHierarchyStore.getState().fetchHierarchy();
+            return data;
+        } catch (error) {
+            set({ isLoading: false, error: error.message });
+            throw error;
         }
-        const data = await response.json();
-        set({ user: data });
-        // Don't fetch hierarchy here, user needs to verify first
-        return data;
       },
       checkAuth: async () => {
         set({ isLoading: true });
@@ -145,6 +161,47 @@ export const useAuthStore = create(
           throw new Error(err.error || 'Failed to send password reset link.');
         }
         return response.json();
+      },
+      requestMagicLink: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch('/api/v1/auth/magic-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Failed to send magic link.');
+          }
+          set({ isLoading: false });
+          return data;
+        } catch (error) {
+          set({ isLoading: false, error: error.message });
+          throw error;
+        }
+      },
+      verifyMagicLink: async (token) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await fetch('/api/v1/auth/magic-link/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'Magic link login failed.');
+          }
+          set({ user: data, isLoading: false });
+          if (data.emailVerified) {
+              useHierarchyStore.getState().fetchHierarchy();
+          }
+          return data;
+        } catch (error) {
+          set({ isLoading: false, error: error.message });
+          throw error;
+        }
       },
       resetPassword: async ({ token, password }) => {
         const response = await fetch('/api/v1/auth/reset-password', {

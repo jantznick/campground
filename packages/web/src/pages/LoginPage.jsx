@@ -7,14 +7,14 @@ import { useDebounce } from '../hooks/useDebounce';
 const LoginPage = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { login, forgotPassword } = useAuthStore();
+    const { login, forgotPassword, requestMagicLink } = useAuthStore();
     
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isResetMode, setIsResetMode] = useState(false);
-    const [resetMessage, setResetMessage] = useState('');
+    const [message, setMessage] = useState('');
 
     const [oidcConfig, setOidcConfig] = useState(null);
     const [domainCheckMessage, setDomainCheckMessage] = useState(null);
@@ -29,7 +29,6 @@ const LoginPage = () => {
     }, [inviteToken, navigate]);
 
     useEffect(() => {
-        // Don't check for OIDC/domain status if we're in reset mode.
         if (isResetMode) {
             setOidcConfig(null);
             setDomainCheckMessage(null);
@@ -83,10 +82,10 @@ const LoginPage = () => {
     const handleForgotPassword = async () => {
         setLoading(true);
         setError(null);
-        setResetMessage('');
+        setMessage('');
         try {
             const result = await forgotPassword(email);
-            setResetMessage(result.message);
+            setMessage(result.message);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -94,11 +93,29 @@ const LoginPage = () => {
         }
     };
 
+    const handleMagicLink = async () => {
+        if (!email) {
+            setError("Please enter your email address first.");
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        setMessage('');
+        try {
+            const result = await requestMagicLink(email);
+            setMessage(result.message);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
     const toggleResetMode = (e) => {
         if (e) e.preventDefault();
         setIsResetMode(!isResetMode);
         setError(null);
-        setResetMessage('');
+        setMessage('');
         setPassword('');
     };
     
@@ -135,8 +152,10 @@ const LoginPage = () => {
             setEmail={setEmail}
             password={isResetMode || oidcConfig ? undefined : password}
             setPassword={isResetMode || oidcConfig ? undefined : setPassword}
-            domainCheckMessage={isResetMode ? (resetMessage || 'Enter your email to receive a password reset link.') : domainCheckMessage}
+            domainCheckMessage={isResetMode ? (message || 'Enter your email to receive a password reset link.') : domainCheckMessage}
+            message={message}
             footerContent={footerContent}
+            onMagicLinkClick={handleMagicLink}
         />
     );
 };

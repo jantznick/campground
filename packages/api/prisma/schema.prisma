@@ -34,6 +34,7 @@ model User {
   memberships Membership[]
   invitation  Invitation?
   passwordResetToken PasswordResetToken?
+  loginTokens LoginToken[]
 }
 
 model Session {
@@ -189,4 +190,14 @@ model PasswordResetToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model LoginToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
 } 

@@ -14,6 +14,8 @@ const RegisterPage = () => {
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [isInviteFlow, setIsInviteFlow] = useState(false);
+    const [useMagicLink, setUseMagicLink] = useState(false);
+    const [message, setMessage] = useState('');
     const [domainCheckResult, setDomainCheckResult] = useState(null);
     const debouncedEmail = useDebounce(email, 500);
   
@@ -80,9 +82,15 @@ const RegisterPage = () => {
     const handleRegister = async () => {
         setLoading(true);
         setError(null);
+        setMessage('');
         try {
-            await register(email, password);
-          navigate('/dashboard');
+            const result = await register(email, useMagicLink ? undefined : password, { useMagicLink });
+            if (useMagicLink) {
+                setMessage(result.message);
+                // Maybe clear the form or show a persistent success state
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err) {
             setError(err.message);
         } finally {
@@ -93,10 +101,15 @@ const RegisterPage = () => {
     const handleAcceptInvitation = async () => {
         setLoading(true);
         setError(null);
+        setMessage('');
         try {
-            await acceptInvitation(inviteToken, password);
-            navigate('/dashboard');
-      } catch (err) {
+            const result = await acceptInvitation(inviteToken, useMagicLink ? undefined : password, { useMagicLink });
+            if (useMagicLink) {
+                setMessage(result.message);
+            } else {
+                navigate('/dashboard');
+            }
+        } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
@@ -110,21 +123,31 @@ const RegisterPage = () => {
             handleRegister();
       }
     };
+
+    const getButtonText = () => {
+        if (isInviteFlow) {
+            return useMagicLink ? 'Activate & Send Login Link' : 'Set Password & Join';
+        }
+        return useMagicLink ? 'Sign Up & Send Login Link' : 'Create Account';
+    };
   
     return (
         <AuthForm
             formType="register"
             title={isInviteFlow ? 'Complete Your Registration' : 'Create an account'}
-            buttonText={isInviteFlow ? 'Set Password & Join' : 'Create Account'}
+            buttonText={getButtonText()}
             onSubmit={handleSubmit}
             error={error}
             loading={loading}
             email={email}
             setEmail={setEmail}
-            password={password}
-            setPassword={setPassword}
+            password={useMagicLink ? undefined : password}
+            setPassword={useMagicLink ? undefined : setPassword}
             isEmailDisabled={isInviteFlow}
             domainCheckMessage={domainCheckResult}
+            useMagicLink={useMagicLink}
+            setUseMagicLink={setUseMagicLink}
+            message={message}
             footerContent={
                 !isInviteFlow && (
                     <p>

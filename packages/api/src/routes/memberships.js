@@ -61,7 +61,7 @@ async function getEffectiveMembersForUsers(resourceType, resourceId, userIds = n
                 user: {
                     id: m.user.id,
                     email: m.user.email,
-                    status: m.user.password ? 'ACTIVE' : 'PENDING',
+                    status: m.user.emailVerified ? 'ACTIVE' : 'PENDING',
                 },
                 effectiveRole: 'VIEWER', // Default to viewer
                 roleSource: 'viewer',

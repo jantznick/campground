@@ -3,15 +3,14 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { protect } from '../middleware/authMiddleware.js';
-import { hasPermission } from '../utils/permissions.js';
 import passport from 'passport';
-import { decrypt } from '../utils/crypto.js';
 import { dynamicOidcStrategy } from '../utils/passport.js';
 import { sendEmail } from '../utils/email.js';
 import React from 'react';
 import { ForgotPassword } from '../../../emails/emails/ForgotPassword.jsx';
 import { NewUserWelcome } from '../../../emails/emails/NewUserWelcome.jsx';
 import { AdminAutoJoinNotification } from '../../../emails/emails/AdminAutoJoinNotification.jsx';
+import { MagicLinkLogin } from '../../../emails/emails/MagicLinkLogin.jsx';
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -27,15 +26,39 @@ const sanitizeUser = (user) => {
   return sanitized;
 };
 
-router.post('/register', async (req, res) => {
-  const { email, password, inviteToken, accountType } = req.body;
-  console.log('register', req.body);
+// Reusable function to send a magic link
+const sendMagicLink = async (user) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
+  await prisma.loginToken.create({
+    data: {
+      token: hashedToken,
+      userId: user.id,
+      expiresAt,
+    },
+  });
+
+  const magicLink = `${process.env.WEB_URL}/login/verify?token=${token}`;
+  
+  await sendEmail({
+    to: user.email,
+    subject: 'Your Magic Login Link for Campground',
+    react: React.createElement(MagicLinkLogin, {
+      magicLink: magicLink,
+    }),
+  });
+};
+
+router.post('/register', async (req, res) => {
+  const { email, password, accountType, useMagicLink } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
   }
 
-  if (!password || password.length < 8) {
+  if (!useMagicLink && (!password || password.length < 8)) {
     return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
   }
 
@@ -45,272 +68,102 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'User with this email already exists.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = useMagicLink ? null : await bcrypt.hash(password, saltRounds);
+    
+    // Auto-join & Standard Registration Logic
+    const domain = email.split('@')[1];
+    let autoJoinConfig = null;
 
-    const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
-    const loginUrl = `${process.env.WEB_URL}/login`;
-
-    if (inviteToken) {
-      const invitation = await prisma.invitation.findUnique({
-        where: { 
-          token: inviteToken,
-          expires: { gt: new Date() } 
-        },
+    if(domain) {
+      const companyDomain = await prisma.autoJoinDomain.findFirst({
+          where: { domain: domain.toLowerCase(), companyId: { not: null }, status: 'VERIFIED' }
       });
-
-      if (!invitation) {
-        return res.status(400).json({ error: 'Invalid or expired invitation token.' });
+      if (companyDomain) autoJoinConfig = { type: 'company', ...companyDomain };
+      else {
+          const orgDomain = await prisma.autoJoinDomain.findFirst({
+              where: { domain: domain.toLowerCase(), organizationId: { not: null }, status: 'VERIFIED' }
+          });
+          if (orgDomain) autoJoinConfig = { type: 'organization', ...orgDomain };
       }
-
-      // The user should already exist in a pending state
-      const userToUpdate = await prisma.user.findUnique({
-        where: { id: invitation.userId }
-      });
-
-      if (!userToUpdate || userToUpdate.email !== email) {
-        return res.status(400).json({ error: 'Invitation is not valid for this email address.' });
-      }
-
-      const updatedUser = await prisma.user.update({
-        where: { id: invitation.userId },
-        data: {
-          password: hashedPassword,
-          emailVerified: false,
-          verificationToken,
-          verificationTokenExpiresAt,
-        },
-      });
-
-      await prisma.invitation.delete({ where: { id: invitation.id } });
-
-      await sendEmail({
-        to: updatedUser.email,
-        subject: 'Welcome to Campground!',
-        react: React.createElement(NewUserWelcome, {
-          firstName: updatedUser.name || updatedUser.email.split('@')[0],
-          loginUrl: loginUrl,
-          verificationCode: verificationToken,
-        })
-      });
-
-      req.login(updatedUser, (err) => {
-        if (err) {
-          console.error('Login after invitation accept error:', err);
-          return res.status(500).json({ error: 'An error occurred during login.' });
-        }
-        return res.status(200).json(sanitizeUser(updatedUser));
-      });
-      return; // End execution here
-    } else {
-      // Auto-join logic
-      const domain = email.split('@')[1];
-      if (domain) {
-        // Check for company-level match first
-        const companyDomain = await prisma.autoJoinDomain.findFirst({
-          where: { 
-            domain: domain.toLowerCase(), 
-            companyId: { not: null },
-            status: 'VERIFIED'
-          }
-        });
-
-        if (companyDomain) {
-          const user = await prisma.user.create({
-            data: {
-              email,
-              password: hashedPassword,
-              emailVerified: false,
-              verificationToken,
-              verificationTokenExpiresAt,
-              memberships: {
-                create: {
-                  role: companyDomain.role,
-                  companyId: companyDomain.companyId
-                }
-              }
-            }
-          });
-		  
-          const admins = await prisma.user.findMany({
-            where: {
-              memberships: {
-                some: {
-                  companyId: companyDomain.companyId,
-                  role: 'ADMIN',
-                },
-              },
-            },
-          });
-
-          const company = await prisma.company.findUnique({ where: { id: companyDomain.companyId }});
-
-          for (const admin of admins) {
-            await sendEmail({
-			  from: 'Campground <donotreply@mail.campground.creativeendurancelab.com>',
-              to: admin.email,
-              subject: `A new user has joined ${company.name}`,
-              react: React.createElement(AdminAutoJoinNotification, {
-				adminName: admin.name || admin.email,
-				newUserName: user.name || user.email,
-				newUserEmail: user.email,
-				itemName: company.name,
-			  }),
-            });
-          }
-
-          await sendEmail({
-            to: user.email,
-            subject: 'Welcome to Campground!',
-            react: React.createElement(NewUserWelcome, {
-              firstName: user.name || user.email.split('@')[0],
-              loginUrl: loginUrl,
-              verificationCode: verificationToken,
-            })
-          });
-
-          // Note: user is created, proceed to create session and log them in
-          req.login(user, (err) => {
-            if (err) {
-              console.error('Login after registration error:', err);
-              return res.status(500).json({ error: 'An error occurred during login after registration.' });
-            }
-            return res.status(201).json(sanitizeUser(user));
-          });
-        }
-
-        // Then check for organization-level match
-        const orgDomain = await prisma.autoJoinDomain.findFirst({
-          where: { 
-            domain: domain.toLowerCase(), 
-            organizationId: { not: null },
-            status: 'VERIFIED'
-          }
-        });
-
-        if (orgDomain) {
-          const user = await prisma.user.create({
-            data: {
-              email,
-              password: hashedPassword,
-              emailVerified: false,
-              verificationToken,
-              verificationTokenExpiresAt,
-              memberships: {
-                create: {
-                  role: orgDomain.role,
-                  organizationId: orgDomain.organizationId
-                }
-              }
-            }
-          });
-		  
-          const admins = await prisma.user.findMany({
-            where: {
-              memberships: {
-                some: {
-                  organizationId: orgDomain.organizationId,
-                  role: 'ADMIN',
-                },
-              },
-            },
-          });
-
-          const organization = await prisma.organization.findUnique({ where: { id: orgDomain.organizationId }});
-
-          for (const admin of admins) {
-            await sendEmail({
-              to: admin.email,
-              subject: `A new user has joined ${organization.name}`,
-              react: React.createElement(AdminAutoJoinNotification, {
-                adminName: admin.name || admin.email,
-                newUserName: user.name || user.email,
-                newUserEmail: user.email,
-                itemName: organization.name,
-              }),
-            });
-          }
-
-          await sendEmail({
-            to: user.email,
-            subject: 'Welcome to Campground!',
-            react: React.createElement(NewUserWelcome, {
-              firstName: user.name || user.email.split('@')[0],
-              loginUrl: loginUrl,
-              verificationCode: verificationToken,
-            })
-          });
-
-          req.login(user, (err) => {
-            if (err) {
-              console.error('Login after registration error:', err);
-              return res.status(500).json({ error: 'An error occurred during login after registration.' });
-            }
-            return res.status(201).json(sanitizeUser(user));
-          });
-        }
-      }
-      
-      // If no invite token and no auto-join domain, create a new Organization
-      const orgData = {
-        name: `${email.split('@')[0]}'s Organization`,
-        accountType: accountType || 'STANDARD', // Default to STANDARD
-        companies: {}
-      };
-
-      if (accountType === 'STANDARD') {
-        orgData.companies = {
+    }
+    
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        emailVerified: false, // Will be verified by magic link or verification email
+        memberships: autoJoinConfig ? {
           create: {
-            name: 'Default Company'
+            role: autoJoinConfig.role,
+            ...(autoJoinConfig.type === 'company' ? { companyId: autoJoinConfig.companyId } : {}),
+            ...(autoJoinConfig.type === 'organization' ? { organizationId: autoJoinConfig.organizationId } : {}),
           }
-        };
-      }
-
-      // If no invite token, create a new Organization and maybe a default Company for the user.
-      const user = await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          emailVerified: false,
-          verificationToken,
-          verificationTokenExpiresAt,
-          memberships: {
-            create: {
-              role: 'ADMIN',
-              organization: {
-                create: orgData
+        } : { // If no auto-join, create a new org for the user
+          create: {
+            role: 'ADMIN',
+            organization: {
+              create: {
+                name: `${email.split('@')[0]}'s Organization`,
+                accountType: accountType || 'STANDARD',
               }
             }
           }
-        },
-        include: {
-          memberships: {
-            include: {
-              organization: true
-            }
-          }
         }
+      },
+      include: { memberships: { include: { organization: true, company: true } } }
+    });
+
+    if (autoJoinConfig) {
+      const entityId = autoJoinConfig.companyId || autoJoinConfig.organizationId;
+      const entityType = autoJoinConfig.type;
+      const admins = await prisma.user.findMany({
+        where: { memberships: { some: { [`${entityType}Id`]: entityId, role: 'ADMIN' } } },
+      });
+      const entity = await prisma[entityType].findUnique({ where: { id: entityId } });
+      for (const admin of admins) {
+        await sendEmail({
+          from: 'Campground <donotreply@mail.campground.creativeendurancelab.com>',
+          to: admin.email,
+          subject: `A new user has joined ${entity.name}`,
+          react: React.createElement(AdminAutoJoinNotification, {
+            adminName: admin.name || admin.email,
+            newUserName: newUser.name || newUser.email,
+            newUserEmail: newUser.email,
+            itemName: entity.name,
+          }),
+        });
+      }
+    }
+
+    if (useMagicLink) {
+      await sendMagicLink(newUser);
+      return res.status(201).json({ message: `A magic link has been sent to ${newUser.email}.` });
+    } else {
+      const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
+      await prisma.user.update({
+        where: { id: newUser.id },
+        data: { verificationToken, verificationTokenExpiresAt }
       });
       
+      const loginUrl = `${process.env.WEB_URL}/login`;
       await sendEmail({
-        to: user.email,
+        to: newUser.email,
         subject: 'Welcome to Campground!',
         react: React.createElement(NewUserWelcome, {
-          firstName: user.name || user.email.split('@')[0],
+          firstName: newUser.name || newUser.email.split('@')[0],
           loginUrl: loginUrl,
           verificationCode: verificationToken,
         })
       });
 
-      // Auto-login: create a session for the new user
-      req.login(user, (err) => {
+      req.login(newUser, (err) => {
         if (err) {
           console.error('Login after registration error:', err);
           return res.status(500).json({ error: 'An error occurred during login after registration.' });
         }
-        return res.status(201).json(sanitizeUser(user));
+        return res.status(201).json(sanitizeUser(newUser));
       });
     }
-
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'An error occurred during registration.' });
@@ -327,17 +180,6 @@ router.post('/login', async (req, res, next) => {
     try {
         const user = await prisma.user.findUnique({
             where: { email },
-            include: {
-                memberships: {
-                    select: {
-                        role: true,
-                        organizationId: true,
-                        companyId: true,
-                        teamId: true,
-                        projectId: true
-                    }
-                }
-            }
         });
 
         if (!user || !user.password) {
@@ -353,21 +195,7 @@ router.post('/login', async (req, res, next) => {
           const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
           const updatedUser = await prisma.user.update({
             where: { id: user.id },
-            data: {
-              verificationToken,
-              verificationTokenExpiresAt,
-            },
-            include: {
-              memberships: {
-                select: {
-                  role: true,
-                  organizationId: true,
-                  companyId: true,
-                  teamId: true,
-                  projectId: true
-                }
-              }
-            }
+            data: { verificationToken, verificationTokenExpiresAt },
           });
 
           const loginUrl = `${process.env.WEB_URL}/login`;
@@ -388,11 +216,8 @@ router.post('/login', async (req, res, next) => {
           return;
         }
 
-        // Use req.login provided by Passport
         req.login(user, (err) => {
             if (err) { return next(err); }
-            
-            // We don't want to send the password hash back
             return res.status(200).json(sanitizeUser(user));
         });
 
@@ -404,62 +229,38 @@ router.post('/login', async (req, res, next) => {
 
 router.post('/logout', (req, res, next) => {
   req.logout((err) => {
-    if (err) {
-      return next(err);
-    }
-    res.clearCookie('connect.sid'); // The default session cookie name from express-session
+    if (err) { return next(err); }
+    res.clearCookie('connect.sid');
     res.status(200).json({ message: 'Logged out successfully.' });
   });
 });
 
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required.' });
-  }
+  if (!email) { return res.status(400).json({ error: 'Email is required.' }); }
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !user.password) {
-      // To prevent account enumeration, we'll send a generic success response
-      // even if the user doesn't exist or is an SSO user.
       console.log(`Password reset requested for non-existent or SSO user: ${email}`);
       return res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
     }
 
-    // Invalidate any existing reset tokens for this user
-    await prisma.passwordResetToken.deleteMany({
-      where: { userId: user.id },
-    });
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
 
-    // Generate a secure selector and validator
     const selector = crypto.randomBytes(16).toString('hex');
     const validator = crypto.randomBytes(32).toString('hex');
-    
     const hashedValidator = await bcrypt.hash(validator, saltRounds);
-
-    // Set token expiration (e.g., 1 hour from now)
     const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
     await prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        selector,
-        token: hashedValidator,
-        expiresAt,
-      },
+      data: { userId: user.id, selector, token: hashedValidator, expiresAt },
     });
 
-    // For now, log the reset link to the console instead of emailing it
-    // The token combines the selector and validator
     const resetToken = `${selector}.${validator}`;
     const resetLink = `${process.env.WEB_URL}/reset-password?password_reset_token=${resetToken}`;
 
-	console.log(resetLink);
     await sendEmail({
       to: email,
       subject: 'Reset Your Campground Password',
@@ -470,7 +271,6 @@ router.post('/forgot-password', async (req, res) => {
     });
 
     res.status(200).json({ message: 'If an account with that email exists, a password reset link has been sent.' });
-
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'An error occurred while processing your request.' });
@@ -479,255 +279,161 @@ router.post('/forgot-password', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body;
-
-  if (!token || !password) {
-    return res.status(400).json({ error: 'Token and new password are required.' });
-  }
-
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
-  }
+  if (!token || !password) { return res.status(400).json({ error: 'Token and new password are required.' }); }
+  if (password.length < 8) { return res.status(400).json({ error: 'Password must be at least 8 characters long.' }); }
 
   try {
     const [selector, validator] = token.split('.');
-
-    if (!selector || !validator) {
-      return res.status(400).json({ error: 'Invalid token format.' });
-    }
+    if (!selector || !validator) { return res.status(400).json({ error: 'Invalid token format.' }); }
 
     const passwordResetToken = await prisma.passwordResetToken.findUnique({
-      where: {
-        selector,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
+      where: { selector, expiresAt: { gt: new Date() } },
     });
 
-    if (!passwordResetToken) {
-      return res.status(400).json({ error: 'Invalid or expired password reset token.' });
-    }
+    if (!passwordResetToken) { return res.status(400).json({ error: 'Invalid or expired password reset token.' }); }
 
     const isValidatorValid = await bcrypt.compare(validator, passwordResetToken.token);
-
-    if (!isValidatorValid) {
-        return res.status(400).json({ error: 'Invalid or expired password reset token.' });
-    }
+    if (!isValidatorValid) { return res.status(400).json({ error: 'Invalid or expired password reset token.' }); }
 
     const newHashedPassword = await bcrypt.hash(password, saltRounds);
-
     await prisma.user.update({
       where: { id: passwordResetToken.userId },
       data: { password: newHashedPassword },
     });
-
-    await prisma.passwordResetToken.delete({
-      where: { id: passwordResetToken.id },
-    });
-
+    await prisma.passwordResetToken.delete({ where: { id: passwordResetToken.id } });
     res.status(200).json({ message: 'Password has been reset successfully.' });
-
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'An error occurred while resetting your password.' });
   }
 });
 
-// GET /api/v1/auth/check-domain - Check if a domain is registered for auto-join
 router.get('/check-domain', async (req, res) => {
     const { domain } = req.query;
-
-    if (!domain) {
-        return res.status(400).json({ error: 'Domain is required.' });
-    }
+    if (!domain) { return res.status(400).json({ error: 'Domain is required.' }); }
 
     try {
-        // Company-level match has precedence
         const companyDomain = await prisma.autoJoinDomain.findFirst({
-            where: { 
-                domain: domain.toLowerCase(),
-                companyId: { not: null },
-                status: 'VERIFIED'
-            },
+            where: { domain: domain.toLowerCase(), companyId: { not: null }, status: 'VERIFIED' },
             include: { company: { select: { name: true } } }
         });
 
         if (companyDomain) {
-            return res.status(200).json({
-                willJoin: true,
-                entityType: 'company',
-                entityName: companyDomain.company.name
-            });
+            return res.json({ willJoin: true, entityType: 'company', entityName: companyDomain.company.name });
         }
 
-        // Organization-level match
         const orgDomain = await prisma.autoJoinDomain.findFirst({
-            where: {
-                domain: domain.toLowerCase(),
-                organizationId: { not: null },
-                status: 'VERIFIED'
-            },
+            where: { domain: domain.toLowerCase(), organizationId: { not: null }, status: 'VERIFIED' },
             include: { organization: { select: { name: true } } }
         });
 
         if (orgDomain) {
-            return res.status(200).json({
-                willJoin: true,
-                entityType: 'organization',
-                entityName: orgDomain.organization.name
-            });
+            return res.json({ willJoin: true, entityType: 'organization', entityName: orgDomain.organization.name });
         }
-
-        // No match found
-        res.status(200).json({ willJoin: false });
-
+        res.json({ willJoin: false });
     } catch (error) {
         console.error('Check domain error:', error);
         res.status(500).json({ error: 'Failed to check domain.' });
     }
 });
 
-// GET /api/v1/auth/invitation/:token - Verify an invitation token
 router.get('/invitation/:token', async (req, res) => {
     const { token } = req.params;
-
     try {
         const invitation = await prisma.invitation.findUnique({
-            where: { token },
+            where: { token, expires: { gt: new Date() } },
         });
-
-        if (!invitation || invitation.expires < new Date()) {
+        if (!invitation) {
             return res.status(404).json({ error: 'Invitation not found or has expired.' });
         }
-
-        res.status(200).json({ email: invitation.email });
-
+        res.json({ email: invitation.email });
     } catch (error) {
         console.error('Verify invitation error:', error);
         res.status(500).json({ error: 'Failed to verify invitation.' });
     }
 });
 
-// POST /api/v1/auth/accept-invitation
 router.post('/accept-invitation', async (req, res) => {
-    const { token, password } = req.body;
+    const { token, password, useMagicLink } = req.body;
 
-    if (!token || !password) {
-        return res.status(400).json({ error: 'Token and password are required.' });
-    }
-
-    if (password.length < 8) {
+    if (!token) { return res.status(400).json({ error: 'Invitation token is required.' }); }
+    if (!useMagicLink && (!password || password.length < 8)) {
         return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
     }
 
     try {
         const invitation = await prisma.invitation.findUnique({
-            where: { token },
+            where: { token, expires: { gt: new Date() } },
+            include: { user: true }
         });
 
-        if (!invitation || invitation.expires < new Date()) {
+        if (!invitation || !invitation.user) {
             return res.status(400).json({ error: 'Invalid or expired invitation token.' });
         }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await prisma.user.update({
-            where: { id: invitation.userId },
-            data: {
-                password: hashedPassword,
-            },
-        });
-
-        // Delete the invitation so it cannot be reused
-        await prisma.invitation.delete({ where: { id: invitation.id } });
-
-        // Create a session for the new user, same as in the /login route.
-        const sessionToken = crypto.randomBytes(32).toString('hex');
-        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        await prisma.session.create({
-            data: {
-                userId: user.id,
-                sessionToken,
-                expires,
-            },
-        });
-
-        res.cookie('sessionToken', sessionToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            expires: expires,
-            sameSite: 'lax'
-        });
         
-        // We don't want to send the password hash back
-        const { password: _, ...userWithoutPassword } = user;
-        res.status(200).json(sanitizeUser(userWithoutPassword));
+        const userToUpdate = invitation.user;
 
+        if (useMagicLink) {
+            await prisma.user.update({
+                where: { id: userToUpdate.id },
+                data: { emailVerified: true },
+            });
+            await sendMagicLink(userToUpdate);
+            await prisma.invitation.delete({ where: { id: invitation.id } });
+            return res.json({ message: 'Your account has been activated. A magic login link has been sent to your email.' });
+        } else {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const updatedUser = await prisma.user.update({
+                where: { id: userToUpdate.id },
+                data: { password: hashedPassword, emailVerified: true },
+            });
+            await prisma.invitation.delete({ where: { id: invitation.id } });
+            req.login(updatedUser, (err) => {
+                if (err) {
+                    console.error('Login after invitation accept error:', err);
+                    return res.status(500).json({ error: 'An error occurred during login.' });
+                }
+                return res.json(sanitizeUser(updatedUser));
+            });
+        }
     } catch (error) {
         console.error('Accept invitation error:', error);
         res.status(500).json({ error: 'Failed to accept invitation.' });
     }
 });
 
-// OIDC Authentication Routes
-// This route starts the OIDC login process (SP-initiated)
-router.get('/oidc', dynamicOidcStrategy, (req, res, next) => {
-  passport.authenticate('oidc')(req, res, next);
-});
+router.get('/oidc', dynamicOidcStrategy, passport.authenticate('oidc'));
 
-// This is the callback URL for the OIDC provider.
-// It handles both SP-initiated (GET) and IdP-initiated (POST) flows.
-router.all('/oidc/callback', dynamicOidcStrategy, (req, res, next) => {
-  passport.authenticate('oidc', {
-    successRedirect: process.env.WEB_URL, // Redirect to frontend app
+router.all('/oidc/callback', dynamicOidcStrategy, passport.authenticate('oidc', {
+    successRedirect: process.env.WEB_URL,
     failureRedirect: `${process.env.WEB_URL}/login?error=oidc_failed`,
-  })(req, res, next);
-});
+}));
 
-// A route to get the current authenticated user's info
 router.get('/me', protect, (req, res) => {
-    // If the middleware succeeds, req.user will be populated
-    res.status(200).json(sanitizeUser(req.user));
+    res.json(sanitizeUser(req.user));
 });
 
-// GET /api/v1/auth/check-oidc?email=...
-// Checks if a domain has an active OIDC configuration.
-// This is a public endpoint used by the login page.
 router.get('/check-oidc', async (req, res) => {
   const { email } = req.query;
-  if (!email || !email.includes('@')) {
-    return res.json({ ssoEnabled: false });
-  }
+  if (!email || !email.includes('@')) { return res.json({ ssoEnabled: false }); }
   const domain = email.split('@')[1].toLowerCase();
 
   try {
     const autoJoinDomain = await prisma.autoJoinDomain.findFirst({
-      where: { 
-        domain,
-        status: 'VERIFIED'
-       },
+      where: { domain, status: 'VERIFIED' },
       include: { organization: { include: { oidcConfiguration: true } } }
     });
 
-    // If the domain isn't tied to an org, there's no OIDC config
-    if (!autoJoinDomain?.organization) {
+    if (!autoJoinDomain?.organization?.oidcConfiguration) {
       return res.json({ ssoEnabled: false });
     }
-
-    const org = autoJoinDomain.organization;
-    const oidcConfig = org.oidcConfiguration;
-
-    // Check if there is a config and if it's explicitly enabled
-    if (oidcConfig) {
-      return res.json({
-        ssoEnabled: true,
-        buttonText: oidcConfig.buttonText || 'Login with SSO', // Provide a default button text
-        organizationId: org.id
-      });
-    }
-
-    res.json({ ssoEnabled: false });
+    
+    const { oidcConfiguration, id } = autoJoinDomain.organization;
+    return res.json({
+      ssoEnabled: true,
+      buttonText: oidcConfiguration.buttonText || 'Login with SSO',
+      organizationId: id
+    });
   } catch (error) {
     console.error('Error checking OIDC status:', error);
     res.status(500).json({ error: 'Server error checking OIDC status.' });
@@ -738,36 +444,21 @@ router.post('/verify-email', protect, async (req, res) => {
   const { token } = req.body;
   const userId = req.user.id;
 
-  if (!token) {
-    return res.status(400).json({ error: 'Verification token is required.' });
-  }
+  if (!token) { return res.status(400).json({ error: 'Verification token is required.' }); }
 
   try {
     const user = await prisma.user.findFirst({
-      where: {
-        id: userId,
-        verificationToken: token,
-      },
+      where: { id: userId, verificationToken: token, verificationTokenExpiresAt: { gt: new Date() } },
     });
 
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid verification token.' });
-    }
-
-    if (new Date() > user.verificationTokenExpiresAt) {
-      return res.status(400).json({ error: 'Verification token has expired.' });
-    }
+    if (!user) { return res.status(400).json({ error: 'Invalid or expired verification token.' }); }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        emailVerified: true,
-        verificationToken: null,
-        verificationTokenExpiresAt: null,
-      },
+      data: { emailVerified: true, verificationToken: null, verificationTokenExpiresAt: null },
     });
     
-    res.status(200).json(sanitizeUser(updatedUser));
+    res.json(sanitizeUser(updatedUser));
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).json({ error: 'An error occurred during email verification.' });
@@ -776,16 +467,11 @@ router.post('/verify-email', protect, async (req, res) => {
 
 router.post('/resend-verification', protect, async (req, res) => {
   const userId = req.user.id;
-
   try {
     const { verificationToken, verificationTokenExpiresAt } = generateVerificationToken();
-
     const user = await prisma.user.update({
       where: { id: userId },
-      data: {
-        verificationToken,
-        verificationTokenExpiresAt,
-      },
+      data: { verificationToken, verificationTokenExpiresAt },
     });
 
     const loginUrl = `${process.env.WEB_URL}/login`;
@@ -798,11 +484,69 @@ router.post('/resend-verification', protect, async (req, res) => {
         verificationCode: verificationToken,
       })
     });
-
-    res.status(200).json({ message: 'A new verification code has been sent.' });
+    res.json({ message: 'A new verification code has been sent.' });
   } catch (error) {
     console.error('Resend verification error:', error);
     res.status(500).json({ error: 'An error occurred while resending the verification code.' });
+  }
+});
+
+router.post('/magic-link', async (req, res) => {
+  const { email } = req.body;
+  if (!email) { return res.status(400).json({ error: 'Email is required.' }); }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.log(`Magic link requested for non-existent user: ${email}`);
+      return res.status(200).json({ message: 'If an account with this email exists, a magic link has been sent.' });
+    }
+    await sendMagicLink(user);
+    res.status(200).json({ message: 'If an account with this email exists, a magic link has been sent.' });
+  } catch (error) {
+    console.error('Error sending magic link:', error);
+    res.status(200).json({ message: 'If an account with this email exists, a magic link has been sent.' });
+  }
+});
+
+router.post('/magic-link/verify', async (req, res) => {
+  const { token } = req.body;
+  if (!token) { return res.status(400).json({ error: 'Token is required.' }); }
+
+  try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const loginToken = await prisma.loginToken.findUnique({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
+
+    if (!loginToken || loginToken.usedAt || new Date() > loginToken.expiresAt) {
+      return res.status(400).json({ error: 'Invalid, used, or expired token.' });
+    }
+    
+    if (!loginToken.user.emailVerified) {
+      await prisma.user.update({
+        where: { id: loginToken.user.id },
+        data: { emailVerified: true },
+      });
+      loginToken.user.emailVerified = true;
+    }
+
+    await prisma.loginToken.update({
+      where: { id: loginToken.id },
+      data: { usedAt: new Date() },
+    });
+
+    req.login(loginToken.user, (err) => {
+      if (err) {
+        console.error('Login after magic link error:', err);
+        return res.status(500).json({ error: 'An error occurred during login.' });
+      }
+      return res.json(sanitizeUser(loginToken.user));
+    });
+  } catch (error) {
+    console.error('Error verifying magic link:', error);
+    res.status(500).json({ error: 'An error occurred during verification.' });
   }
 });
 
