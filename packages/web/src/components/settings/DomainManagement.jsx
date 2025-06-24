@@ -3,6 +3,7 @@ import useDomainStore from '../../stores/useDomainStore';
 import useMembershipStore from '../../stores/useMembershipStore';
 import useAuthStore from '../../stores/useAuthStore';
 import { Trash2, Plus, AlertTriangle, Copy, Check, RefreshCw } from 'lucide-react';
+import ConfirmationModal from '../ConfirmationModal';
 
 const DomainManagement = ({ resourceType, resourceId }) => {
     const { domains, loading, error, fetchDomains, addDomain, removeDomain, verifyDomain } = useDomainStore();
@@ -15,6 +16,7 @@ const DomainManagement = ({ resourceType, resourceId }) => {
     const [copiedCode, setCopiedCode] = useState(null);
     const [verifyingId, setVerifyingId] = useState(null);
     const [countdown, setCountdown] = useState(60);
+    const [domainToDelete, setDomainToDelete] = useState(null);
 
     const refreshDomains = useCallback(() => {
         if (resourceId) {
@@ -96,6 +98,13 @@ const DomainManagement = ({ resourceType, resourceId }) => {
 
     const isPrivilegedRole = newRole === 'ADMIN' || newRole === 'EDITOR';
 
+    const handleDeleteDomain = async () => {
+        if (domainToDelete) {
+            await removeDomain(domainToDelete.id, resourceType, resourceId);
+            setDomainToDelete(null);
+        }
+    };
+
     return (
         <div className="mt-8">
             <h2 className="text-xl font-bold mb-4">Auto-Join by Domain</h2>
@@ -169,7 +178,7 @@ const DomainManagement = ({ resourceType, resourceId }) => {
                                     )}
                                     {isAdmin && (
                                         <button 
-                                            onClick={() => removeDomain(d.id, resourceType, resourceId)} 
+                                            onClick={() => setDomainToDelete(d)} 
                                             className="p-2 text-red-500 hover:text-red-400 disabled:text-gray-500"
                                             disabled={loading}
                                             title="Remove domain"
@@ -202,6 +211,17 @@ const DomainManagement = ({ resourceType, resourceId }) => {
                     {!loading && domains.length === 0 && <p className="text-white/70">No domains configured for auto-join.</p>}
                 </div>
             </div>
+            {domainToDelete && (
+                <ConfirmationModal
+                    isOpen={!!domainToDelete}
+                    onClose={() => setDomainToDelete(null)}
+                    onConfirm={handleDeleteDomain}
+                    title={`Delete Domain: ${domainToDelete.domain}`}
+                    message="Are you sure you want to remove this domain? Users will no longer be able to automatically join by signing up with this domain."
+                    confirmText="Delete"
+                    isLoading={loading}
+                />
+            )}
         </div>
     );
 };

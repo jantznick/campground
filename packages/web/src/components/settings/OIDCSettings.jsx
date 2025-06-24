@@ -2,12 +2,14 @@ import { useEffect, useState, useMemo } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import useOIDCStore from '../../stores/useOIDCStore';
 import useHierarchyStore from '../../stores/useHierarchyStore';
+import ConfirmationModal from '../ConfirmationModal';
 
 export default function OIDCSettings() {
   const { activeOrganization } = useHierarchyStore();
   const { oidcConfig, fetchOIDCConfig, saveOIDCConfig, deleteOIDCConfig, loading, error } = useOIDCStore();
   
   const [formData, setFormData] = useState({
+    isEnabled: false,
     issuer: '',
     clientId: '',
     clientSecret: '',
@@ -15,7 +17,9 @@ export default function OIDCSettings() {
     tokenUrl: '',
     userInfoUrl: '',
     defaultRole: 'READER',
+    buttonText: '',
   });
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const orgId = activeOrganization?.id;
 
@@ -37,6 +41,7 @@ export default function OIDCSettings() {
   useEffect(() => {
     if (oidcConfig) {
       setFormData({
+        isEnabled: oidcConfig.isEnabled || false,
         issuer: oidcConfig.issuer || '',
         clientId: oidcConfig.clientId || '',
         clientSecret: '', // Always leave secret blank for security
@@ -44,10 +49,12 @@ export default function OIDCSettings() {
         tokenUrl: oidcConfig.tokenUrl || '',
         userInfoUrl: oidcConfig.userInfoUrl || '',
         defaultRole: oidcConfig.defaultRole || 'READER',
+        buttonText: oidcConfig.buttonText || 'Login with SSO',
       });
     } else {
       // Reset form if there's no config
       setFormData({
+        isEnabled: false,
         issuer: '',
         clientId: '',
         clientSecret: '',
@@ -55,15 +62,16 @@ export default function OIDCSettings() {
         tokenUrl: '',
         userInfoUrl: '',
         defaultRole: 'READER',
+        buttonText: 'Login with SSO',
       });
     }
   }, [oidcConfig]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -78,9 +86,8 @@ export default function OIDCSettings() {
   };
   
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete the OIDC configuration? This action cannot be undone.')) {
-      await deleteOIDCConfig(orgId);
-    }
+    await deleteOIDCConfig(orgId);
+    setIsDeleteModalOpen(false);
   };
 
   const isPrivilegedRole = formData.defaultRole !== 'READER';
@@ -94,6 +101,25 @@ export default function OIDCSettings() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative flex items-start">
+            <div className="flex h-6 items-center">
+              <input
+                id="isEnabled"
+                name="isEnabled"
+                type="checkbox"
+                checked={formData.isEnabled}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-white/30 bg-white/5 text-[var(--orange-wheel)] focus:ring-[var(--orange-wheel)]"
+              />
+            </div>
+            <div className="ml-3 text-sm leading-6">
+              <label htmlFor="isEnabled" className="font-medium text-white">
+                Enable OIDC Single Sign-On
+              </label>
+              <p className="text-white/50">Allow users to log in using the configured identity provider.</p>
+            </div>
+          </div>
+
           <div className="sm:col-span-6">
               <label htmlFor="callbackUrl" className="block text-sm font-medium leading-6 text-white/80">
                 Callback / Redirect URL
@@ -192,6 +218,23 @@ export default function OIDCSettings() {
             </div>
 
             <div className="sm:col-span-3">
+              <label htmlFor="buttonText" className="block text-sm font-medium leading-6 text-white/80">
+                Button Text (Optional)
+              </label>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  name="buttonText"
+                  id="buttonText"
+                  value={formData.buttonText}
+                  onChange={handleChange}
+                  className="block w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--orange-wheel)]"
+                  placeholder="e.g., Login with Acme Corp"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-3">
               <label htmlFor="defaultRole" className="block text-sm font-medium leading-6 text-white/80">
                 Default Role for New Users
               </label>
@@ -227,7 +270,7 @@ export default function OIDCSettings() {
             {oidcConfig && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => setIsDeleteModalOpen(true)}
                 disabled={loading}
                 className="text-sm font-semibold leading-6 text-red-500 hover:text-red-400 disabled:opacity-50"
               >
@@ -244,6 +287,15 @@ export default function OIDCSettings() {
           </div>
         </form>
       </div>
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete OIDC Configuration"
+        message="Are you sure you want to delete this configuration? All users will lose the ability to sign in via SSO. This action cannot be undone."
+        confirmText="Delete"
+        isLoading={loading}
+      />
     </div>
   );
 } 

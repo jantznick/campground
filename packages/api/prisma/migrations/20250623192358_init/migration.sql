@@ -122,6 +122,7 @@ CREATE TABLE "AutoJoinDomain" (
 CREATE TABLE "OIDCConfiguration" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
+    "isEnabled" BOOLEAN NOT NULL DEFAULT false,
     "issuer" TEXT NOT NULL,
     "clientId" TEXT NOT NULL,
     "clientSecret" TEXT NOT NULL,
@@ -129,6 +130,7 @@ CREATE TABLE "OIDCConfiguration" (
     "tokenUrl" TEXT NOT NULL,
     "userInfoUrl" TEXT NOT NULL,
     "defaultRole" "Role" NOT NULL DEFAULT 'READER',
+    "buttonText" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

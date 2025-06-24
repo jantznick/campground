@@ -1,11 +1,13 @@
 import crypto from 'crypto';
+import 'dotenv/config';
 
 const algorithm = 'aes-256-gcm';
-const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
 
+const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
 if (!process.env.ENCRYPTION_KEY || key.length !== 32) {
-  throw new Error('ENCRYPTION_KEY environment variable must be a 32-byte hex string.');
+	throw new Error('ENCRYPTION_KEY environment variable must be a 32-byte hex string.');
 }
+
 
 export function encrypt(text) {
   const iv = crypto.randomBytes(16);
@@ -24,7 +26,7 @@ export function decrypt(hash) {
 
     if (!ivHex || !authTagHex || !encryptedHex) {
       throw new Error('Invalid encrypted hash format.');
-    }
+    } 
 
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');

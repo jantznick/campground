@@ -671,13 +671,13 @@ router.post('/accept-invitation', async (req, res) => {
 
 // OIDC Authentication Routes
 // This route starts the OIDC login process (SP-initiated)
-router.get('/auth/oidc', dynamicOidcStrategy, (req, res, next) => {
+router.get('/oidc', dynamicOidcStrategy, (req, res, next) => {
   passport.authenticate('oidc')(req, res, next);
 });
 
 // This is the callback URL for the OIDC provider.
 // It handles both SP-initiated (GET) and IdP-initiated (POST) flows.
-router.all('/auth/oidc/callback', dynamicOidcStrategy, (req, res, next) => {
+router.all('/oidc/callback', dynamicOidcStrategy, (req, res, next) => {
   passport.authenticate('oidc', {
     successRedirect: process.env.WEB_URL, // Redirect to frontend app
     failureRedirect: `${process.env.WEB_URL}/login?error=oidc_failed`,
@@ -690,10 +690,10 @@ router.get('/me', protect, (req, res) => {
     res.status(200).json(sanitizeUser(req.user));
 });
 
-// GET /api/v1/auth/oidc-status?email=...
+// GET /api/v1/auth/check-oidc?email=...
 // Checks if a domain has an active OIDC configuration.
 // This is a public endpoint used by the login page.
-router.get('/oidc-status', async (req, res) => {
+router.get('/check-oidc', async (req, res) => {
   const { email } = req.query;
   if (!email || !email.includes('@')) {
     return res.json({ ssoEnabled: false });
@@ -702,17 +702,26 @@ router.get('/oidc-status', async (req, res) => {
 
   try {
     const autoJoinDomain = await prisma.autoJoinDomain.findFirst({
-      where: { domain },
+      where: { 
+        domain,
+        status: 'VERIFIED'
+       },
       include: { organization: { include: { oidcConfiguration: true } } }
     });
 
-    const org = autoJoinDomain?.organization;
-    const oidcConfig = org?.oidcConfiguration;
+    // If the domain isn't tied to an org, there's no OIDC config
+    if (!autoJoinDomain?.organization) {
+      return res.json({ ssoEnabled: false });
+    }
 
-    if (oidcConfig && oidcConfig.isEnabled) {
+    const org = autoJoinDomain.organization;
+    const oidcConfig = org.oidcConfiguration;
+
+    // Check if there is a config and if it's explicitly enabled
+    if (oidcConfig) {
       return res.json({
         ssoEnabled: true,
-        buttonText: oidcConfig.buttonText,
+        buttonText: oidcConfig.buttonText || 'Login with SSO', // Provide a default button text
         organizationId: org.id
       });
     }

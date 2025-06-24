@@ -45,7 +45,7 @@ router.get('/organizations/:orgId/oidc', protect, async (req, res) => {
 router.post('/organizations/:orgId/oidc', protect, async (req, res) => {
   const { orgId } = req.params;
   const user = req.user;
-  const { issuer, clientId, clientSecret, authorizationUrl, tokenUrl, userInfoUrl, defaultRole } = req.body;
+  const { isEnabled, issuer, clientId, clientSecret, authorizationUrl, tokenUrl, userInfoUrl, defaultRole, buttonText } = req.body;
 
   if (!issuer || !clientId || !clientSecret || !authorizationUrl || !tokenUrl || !userInfoUrl) {
     return res.status(400).json({ error: 'issuer, clientId, clientSecret, authorizationUrl, tokenUrl, and userInfoUrl are required.' });
@@ -56,10 +56,10 @@ router.post('/organizations/:orgId/oidc', protect, async (req, res) => {
   }
 
   try {
-    // const hasAccess = await hasPermission(user, 'ADMIN', 'organization', orgId);
-    // if (!hasAccess) {
-    //   return res.status(403).json({ error: 'You do not have permission to modify this configuration.' });
-    // }
+    const hasAccess = await hasPermission(user, 'ADMIN', 'organization', orgId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'You do not have permission to modify this configuration.' });
+    }
 
     const existingConfig = await prisma.oIDCConfiguration.findUnique({
       where: { organizationId: orgId },
@@ -71,6 +71,7 @@ router.post('/organizations/:orgId/oidc', protect, async (req, res) => {
 
     const data = {
       organizationId: orgId,
+      isEnabled: isEnabled || false,
       issuer,
       clientId,
       clientSecret: encrypt(clientSecret),
@@ -78,9 +79,8 @@ router.post('/organizations/:orgId/oidc', protect, async (req, res) => {
       tokenUrl,
       userInfoUrl,
       defaultRole, // If not provided, prisma schema default is used
+      buttonText,
     };
-
-	console.log(data);
 
     const newConfig = await prisma.oIDCConfiguration.create({
         data,
@@ -99,35 +99,34 @@ router.post('/organizations/:orgId/oidc', protect, async (req, res) => {
 router.put('/organizations/:orgId/oidc', protect, async (req, res) => {
     const { orgId } = req.params;
     const user = req.user;
-    const { issuer, clientId, clientSecret, authorizationUrl, tokenUrl, userInfoUrl, defaultRole } = req.body;
+    const { isEnabled, issuer, clientId, clientSecret, authorizationUrl, tokenUrl, userInfoUrl, defaultRole, buttonText } = req.body;
 
     if (defaultRole && !Object.values(Role).includes(defaultRole)) {
         return res.status(400).json({ error: 'Invalid defaultRole specified.' });
     }
 
     try {
-        // const hasAccess = await hasPermission(user, 'ADMIN', 'organization', orgId);
-        // if (!hasAccess) {
-        //     return res.status(403).json({ error: 'You do not have permission to modify this configuration.' });
-        // }
+        const hasAccess = await hasPermission(user, 'ADMIN', 'organization', orgId);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'You do not have permission to modify this configuration.' });
+        }
+        
+        const dataToUpdate = {};
 
-        const data = {
-            issuer,
-            clientId,
-            // Only update secret if a new one is provided
-            ...(clientSecret && { clientSecret: encrypt(clientSecret) }),
-            authorizationUrl,
-            tokenUrl,
-            userInfoUrl,
-            defaultRole,
-        };
-
-        // Remove undefined fields so they don't overwrite existing values
-        Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+        // Explicitly check each field before adding it to the update payload.
+        if (isEnabled !== undefined) dataToUpdate.isEnabled = isEnabled;
+        if (issuer) dataToUpdate.issuer = issuer;
+        if (clientId) dataToUpdate.clientId = clientId;
+        if (clientSecret) dataToUpdate.clientSecret = encrypt(clientSecret);
+        if (authorizationUrl) dataToUpdate.authorizationUrl = authorizationUrl;
+        if (tokenUrl) dataToUpdate.tokenUrl = tokenUrl;
+        if (userInfoUrl) dataToUpdate.userInfoUrl = userInfoUrl;
+        if (defaultRole) dataToUpdate.defaultRole = defaultRole;
+        if (buttonText !== undefined) dataToUpdate.buttonText = buttonText;
 
         const updatedConfig = await prisma.oIDCConfiguration.update({
             where: { organizationId: orgId },
-            data,
+            data: dataToUpdate,
         });
 
         const { clientSecret: _, ...configToSend } = updatedConfig;

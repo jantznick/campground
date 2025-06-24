@@ -39,7 +39,7 @@ const LoginPage = () => {
         async function checkOidcStatus() {
             if (emailRegex.test(debouncedEmail)) {
                 try {
-                    const response = await fetch(`/api/v1/auth/oidc-status?email=${debouncedEmail}`);
+                    const response = await fetch(`/api/v1/auth/check-oidc?email=${debouncedEmail}`);
                     const data = await response.json();
                     if (data.ssoEnabled) {
                         setOidcConfig(data);
@@ -63,7 +63,8 @@ const LoginPage = () => {
 
     const handleLogin = async () => {
         if (oidcConfig) {
-            window.location.href = `/api/v1/auth/oidc?organizationId=${oidcConfig.organizationId}`;
+            const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            window.location.href = `${apiBaseUrl}/api/v1/auth/oidc?organizationId=${oidcConfig.organizationId}`;
             return;
         }
 

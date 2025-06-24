@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useMembershipStore from '../../stores/useMembershipStore';
 import useAuthStore from '../../stores/useAuthStore';
 import { Trash2, Edit, Save, X, Plus, Copy, Check, Send, Info } from 'lucide-react';
+import ConfirmationModal from '../ConfirmationModal';
 
 const Tooltip = ({ children, text }) => {
     const [show, setShow] = useState(false);
@@ -26,6 +27,7 @@ const AccessManagement = ({ resourceType, resourceId }) => {
     const [editingMemberId, setEditingMemberId] = useState(null);
     const [editingRole, setEditingRole] = useState('');
     const [copied, setCopied] = useState(false);
+    const [memberToDelete, setMemberToDelete] = useState(null);
 
     useEffect(() => {
         if (resourceId) {
@@ -67,6 +69,13 @@ const AccessManagement = ({ resourceType, resourceId }) => {
             setEditingMemberId(null);
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleRemoveMember = async () => {
+        if (memberToDelete) {
+            await removeMember(memberToDelete.id);
+            setMemberToDelete(null);
         }
     };
 
@@ -199,7 +208,7 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                                 )}
 
                                 {member.id && isAdmin && (
-                                    <button onClick={() => removeMember(member.id)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
+                                    <button onClick={() => setMemberToDelete(member)} className="text-red-500 hover:text-red-400"><Trash2 size={18} /></button>
                                 )}
                             </div>
                         </div>
@@ -207,6 +216,17 @@ const AccessManagement = ({ resourceType, resourceId }) => {
                     {!loading && members.length === 0 && <p>No members found.</p>}
                 </div>
             </div>
+            {memberToDelete && (
+                <ConfirmationModal
+                    isOpen={!!memberToDelete}
+                    onClose={() => setMemberToDelete(null)}
+                    onConfirm={handleRemoveMember}
+                    title="Remove Member"
+                    message={`Are you sure you want to remove ${memberToDelete.user.email}? They will lose all direct access provided by this membership.`}
+                    confirmText="Remove"
+                    isLoading={loading}
+                />
+            )}
         </div>
     );
 };

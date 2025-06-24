@@ -28,10 +28,17 @@ export const dynamicOidcStrategy = async (req, res, next) => {
       }
     } 
     // SP-initiated flow: The organization ID is passed as a query parameter.
-    else if (req.query.orgId) {
-      organizationId = req.query.orgId;
+    else if (req.query.organizationId) {
+      organizationId = req.query.organizationId;
       oidcConfig = await prisma.oIDCConfiguration.findUnique({
         where: { organizationId: organizationId },
+      });
+    }
+    // SP-initiated flow (callback): The organization ID was stored in the session.
+    else if (req.session?.oidc?.organizationId) {
+      organizationId = req.session.oidc.organizationId;
+      oidcConfig = await prisma.oIDCConfiguration.findUnique({
+          where: { organizationId: organizationId },
       });
     }
 
@@ -44,6 +51,8 @@ export const dynamicOidcStrategy = async (req, res, next) => {
       req.session.oidc = { organizationId };
     }
 
+    const decryptedSecret = decrypt(oidcConfig.clientSecret);
+
     const strategy = new OidcStrategy(
       {
         issuer: oidcConfig.issuer,
@@ -51,7 +60,7 @@ export const dynamicOidcStrategy = async (req, res, next) => {
         tokenURL: oidcConfig.tokenUrl,
         userInfoURL: oidcConfig.userInfoUrl,
         clientID: oidcConfig.clientId,
-        clientSecret: decrypt(oidcConfig.clientSecret),
+        clientSecret: decryptedSecret,
         callbackURL: `${process.env.API_URL}/api/v1/auth/oidc/callback`,
         scope: 'openid profile email',
         passReqToCallback: true,
