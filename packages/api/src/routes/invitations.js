@@ -4,6 +4,7 @@ import { protect } from '../middleware/authMiddleware.js';
 import { hasPermission } from '../utils/permissions.js';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/email.js';
+import React from 'react';
 import { UserInvitation } from '../../../emails/emails/UserInvitation.jsx';
 
 const prisma = new PrismaClient();
@@ -74,7 +75,7 @@ router.post('/resend', async (req, res) => {
         await sendEmail({
           to: user.email,
           subject: `You've been invited to Campground`,
-          react: UserInvitation({
+          react: React.createElement(UserInvitation, {
             inviterName: req.user.name || req.user.email,
             organizationName: 'Campground', // This could be made more specific
             inviteLink: invitationLink,

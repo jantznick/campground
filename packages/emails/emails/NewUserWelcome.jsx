@@ -56,10 +56,10 @@ const btn = {
 
 const codeContainer = {
   background: 'rgba(0,0,0,.05)',
-  borderRadius: '4px',
+  borderRadius: '.5em',
   margin: '16px auto 14px',
-  verticalAlign: 'middle',
-  width: '280px',
+  padding: '10px 30px',
+  width: 'fit-content',
 };
 
 const codeText = {

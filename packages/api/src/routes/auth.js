@@ -8,6 +8,7 @@ import passport from 'passport';
 import { decrypt } from '../utils/crypto.js';
 import { dynamicOidcStrategy } from '../utils/passport.js';
 import { sendEmail } from '../utils/email.js';
+import React from 'react';
 import { ForgotPassword } from '../../../emails/emails/ForgotPassword.jsx';
 import { NewUserWelcome } from '../../../emails/emails/NewUserWelcome.jsx';
 import { AdminAutoJoinNotification } from '../../../emails/emails/AdminAutoJoinNotification.jsx';
@@ -85,7 +86,7 @@ router.post('/register', async (req, res) => {
       await sendEmail({
         to: updatedUser.email,
         subject: 'Welcome to Campground!',
-        react: NewUserWelcome({
+        react: React.createElement(NewUserWelcome, {
           firstName: updatedUser.name || updatedUser.email.split('@')[0],
           loginUrl: loginUrl,
           verificationCode: verificationToken,
@@ -148,7 +149,7 @@ router.post('/register', async (req, res) => {
 			  from: 'Campground <donotreply@mail.campground.creativeendurancelab.com>',
               to: admin.email,
               subject: `A new user has joined ${company.name}`,
-              react: AdminAutoJoinNotification({
+              react: React.createElement(AdminAutoJoinNotification, {
 				adminName: admin.name || admin.email,
 				newUserName: user.name || user.email,
 				newUserEmail: user.email,
@@ -160,7 +161,7 @@ router.post('/register', async (req, res) => {
           await sendEmail({
             to: user.email,
             subject: 'Welcome to Campground!',
-            react: NewUserWelcome({
+            react: React.createElement(NewUserWelcome, {
               firstName: user.name || user.email.split('@')[0],
               loginUrl: loginUrl,
               verificationCode: verificationToken,
@@ -220,7 +221,7 @@ router.post('/register', async (req, res) => {
             await sendEmail({
               to: admin.email,
               subject: `A new user has joined ${organization.name}`,
-              react: AdminAutoJoinNotification({
+              react: React.createElement(AdminAutoJoinNotification, {
                 adminName: admin.name || admin.email,
                 newUserName: user.name || user.email,
                 newUserEmail: user.email,
@@ -232,7 +233,7 @@ router.post('/register', async (req, res) => {
           await sendEmail({
             to: user.email,
             subject: 'Welcome to Campground!',
-            react: NewUserWelcome({
+            react: React.createElement(NewUserWelcome, {
               firstName: user.name || user.email.split('@')[0],
               loginUrl: loginUrl,
               verificationCode: verificationToken,
@@ -293,7 +294,7 @@ router.post('/register', async (req, res) => {
       await sendEmail({
         to: user.email,
         subject: 'Welcome to Campground!',
-        react: NewUserWelcome({
+        react: React.createElement(NewUserWelcome, {
           firstName: user.name || user.email.split('@')[0],
           loginUrl: loginUrl,
           verificationCode: verificationToken,
@@ -373,7 +374,7 @@ router.post('/login', async (req, res, next) => {
           await sendEmail({
             to: updatedUser.email,
             subject: 'Verify Your Email Address',
-            react: NewUserWelcome({
+            react: React.createElement(NewUserWelcome, {
               firstName: updatedUser.name || updatedUser.email.split('@')[0],
               loginUrl: loginUrl,
               verificationCode: verificationToken,
@@ -462,7 +463,7 @@ router.post('/forgot-password', async (req, res) => {
     await sendEmail({
       to: email,
       subject: 'Reset Your Campground Password',
-      react: ForgotPassword({
+      react: React.createElement(ForgotPassword, {
         firstName: user.name || 'User',
         resetLink: resetLink,
       }),
@@ -791,7 +792,7 @@ router.post('/resend-verification', protect, async (req, res) => {
     await sendEmail({
       to: user.email,
       subject: 'Verify Your Email Address',
-      react: NewUserWelcome({
+      react: React.createElement(NewUserWelcome, {
         firstName: user.name || user.email.split('@')[0],
         loginUrl: loginUrl,
         verificationCode: verificationToken,
