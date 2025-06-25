@@ -1,23 +1,28 @@
-# Stage 1: Build the application
+# Stage 1: Build the React application
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# First, copy only the package management files
+# Copy root package management files
 COPY package.json package-lock.json* ./
 
-# Then, copy the package.json files for each workspace
+# Copy workspace package.json files
 COPY packages/api/package.json ./packages/api/
 COPY packages/web/package.json ./packages/web/
+COPY packages/emails/package.json ./packages/emails/
 
-# Install all dependencies for the monorepo
+# Install all dependencies
 RUN npm install
 
 # Copy the rest of the source code
 COPY . .
 
-# Build the web package specifically
-RUN npm run build --workspace=web
+# Build the web application
+RUN npm run build -w packages/web
+
+# Copy the wait script from the scripts directory into the builder stage
+COPY scripts/wait-for-api.sh /app/wait-for-api.sh
+
 
 # Stage 2: Serve the built application from a lightweight server
 FROM nginx:stable-alpine

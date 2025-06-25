@@ -38,7 +38,6 @@ services:
       dockerfile: packages/web/Dockerfile.prod
     container_name: campground-web-prod
     ports:
-      # Map to standard HTTP/S ports
       - "80:80"
       - "443:443"
     volumes:
@@ -46,6 +45,7 @@ services:
       - ./data/certbot/www:/var/www/certbot
     depends_on:
       - api
+      - certbot
     restart: unless-stopped
 
   certbot:
@@ -54,7 +54,9 @@ services:
     volumes:
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
+      - ./scripts/certbot-entrypoint.sh:/entrypoint.sh
     # The command will run in a loop to check for renewal every 12 hours
+    entrypoint: /entrypoint.sh
     command: 'renew --quiet'
 
   # seeder:
