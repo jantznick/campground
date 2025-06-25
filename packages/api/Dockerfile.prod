@@ -45,6 +45,7 @@ COPY --from=builder /app/packages/api/node_modules* ./packages/api/node_modules
 
 # Copy the API source code and Prisma schema from builder
 COPY --from=builder /app/packages/api ./packages/api
+COPY --from=builder /app/packages/emails ./packages/emails
 
 # Copy the generated Prisma client from the builder stage
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
@@ -54,4 +55,4 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 EXPOSE 3001
 
 # The command to run the application
-CMD ["node", "packages/api/src/index.js"] 
+CMD ["npx", "tsx", "packages/api/src/index.js"] 

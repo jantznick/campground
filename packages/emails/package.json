@@ -6,7 +6,6 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "email dev",
-    "build": "email export --outDir ./dist",
     "export": "email export --outDir ./dist"
   },
   "author": "",
