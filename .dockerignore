@@ -1,0 +1,8 @@
+# Common ignores
+node_modules
+npm-debug.log
+.DS_Store
+.env
+
+# Ignore runtime data directories
+data/ 
